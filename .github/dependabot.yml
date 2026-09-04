@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: terraform
+    directory: /bootstrap/alz/github
+    schedule:
+      interval: monthly
+  - package-ecosystem: terraform
+    directory: /ALZ.ARO/templates/terraform
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

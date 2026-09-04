@@ -1,0 +1,8 @@
+compact: true
+download-external-modules: false
+framework:
+  - terraform
+quiet: true
+skip-check:
+  # GitHub environments and OIDC remove long-lived cloud credentials.
+  - CKV_GIT_4

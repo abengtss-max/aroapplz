@@ -1,0 +1,10 @@
+ARO Application Landing Zone Accelerator
+Copyright (c) 2026 contributors
+
+Licensed under the MIT License. See LICENSE.
+
+This project adapts structural and workflow ideas from:
+- abengtss-max/aksapplz (MIT), https://github.com/abengtss-max/aksapplz
+- Azure/ARO-Landing-Zone-Accelerator secure baseline Terraform patterns, https://github.com/Azure/ARO-Landing-Zone-Accelerator
+
+Azure, Microsoft Entra, GitHub, Red Hat, OpenShift, and Terraform are trademarks of their respective owners. No endorsement is implied.

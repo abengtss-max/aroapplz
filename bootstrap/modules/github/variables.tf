@@ -1,0 +1,11 @@
+variable "organization" { type = string }
+variable "repository" { type = string }
+variable "apply_approvers" { type = list(string) }
+variable "repository_files" { type = map(string) }
+variable "tenant_id" { type = string }
+variable "workload_subscription_id" { type = string }
+variable "connectivity_subscription_id" { type = string }
+variable "client_ids" { type = map(string) }
+variable "backend_resource_group_name" { type = string }
+variable "backend_storage_account_name" { type = string }
+variable "backend_container_name" { type = string }

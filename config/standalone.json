@@ -1,0 +1,21 @@
+{
+  "deployment_mode": "standalone",
+  "tenant_id": "00000000-0000-0000-0000-000000000000",
+  "bootstrap_subscription_id": "00000000-0000-0000-0000-000000000000",
+  "workload_subscription_id": "00000000-0000-0000-0000-000000000000",
+  "connectivity_subscription_id": "",
+  "location": "eastus",
+  "service_name": "aroapp",
+  "environment_name": "dev",
+  "github_organization": "your-github-organization",
+  "github_repository": "aroapp-dev",
+  "apply_approvers": ["github-user"],
+  "aro_version": "",
+  "aro_domain": "aroapp-dev",
+  "aro_vnet_cidr": "10.40.0.0/20",
+  "control_plane_subnet_cidr": "10.40.0.0/23",
+  "worker_subnet_cidr": "10.40.4.0/22",
+  "hub_vnet_id": "",
+  "next_hop_ip": "",
+  "ingress_mode": "none"
+}

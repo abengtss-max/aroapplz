@@ -1,0 +1,21 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+crash.log
+bootstrap/alz/github/terraform.tfvars.json
+
+# Secrets and local configuration
+.env
+*.secret.*
+config/local.*
+
+# PowerShell
+*.clixml
+
+# Editors/OS
+.vscode/
+.DS_Store
+Thumbs.db
