@@ -4,7 +4,9 @@ aroapplz uses separate user-assigned managed identities for GitHub delivery and 
 
 ## Bootstrap operator
 
-Bootstrap authenticates interactively to Azure through the operator's current Azure CLI context and to GitHub through `GITHUB_TOKEN` or `GH_TOKEN`. The token is supplied at runtime and is not written or printed by the module.
+Bootstrap authenticates interactively to Azure through the operator's current Azure CLI context and to GitHub through a runtime-only PAT in `GITHUB_TOKEN` or `GH_TOKEN`. The Terraform GitHub provider reads `GITHUB_TOKEN`; when only `GH_TOKEN` is supplied, the module maps it to `GITHUB_TOKEN` in process memory. The token is not written or printed by the module.
+
+The bootstrap is responsible for creating the private workload repository, protected environments, Actions variables, generated source files, and workflows. The documented classic PAT scope is `repo`, and the token owner must be permitted to create and administer repositories for the configured user or organization. Organization SAML SSO and PAT policies still apply. Remove the environment variable after bootstrap; it is not used by generated workload workflows, which authenticate to Azure through OIDC.
 
 The operator must be authorized to create the configured Azure, Entra, RBAC, repository, and environment resources.
 

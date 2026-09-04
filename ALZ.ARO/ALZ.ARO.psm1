@@ -92,6 +92,11 @@ function Invoke-AROPreflight {
     if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN) -and [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
         throw 'Set GITHUB_TOKEN or GH_TOKEN for the Terraform GitHub provider. The value is never written or printed.'
     }
+    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+        # The Terraform GitHub provider reads GITHUB_TOKEN. Accept GH_TOKEN as
+        # an operator convenience without persisting or printing its value.
+        $env:GITHUB_TOKEN = $env:GH_TOKEN
+    }
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.bootstrap_subscription_id,'--output','none'))
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.workload_subscription_id,'--output','none'))
     if ($Config.deployment_mode -eq 'spoke') {

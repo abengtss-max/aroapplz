@@ -52,10 +52,36 @@ Replace every placeholder and review the [configuration reference](../reference/
 
 ## 3. Authenticate
 
-Authenticate Azure CLI and select or verify access to the required subscriptions. Set a GitHub token only in the current process environment as `GITHUB_TOKEN` or `GH_TOKEN`.
+Authenticate Azure CLI and select or verify access to the required subscriptions:
+
+```powershell
+az login
+az account set --subscription <bootstrap-subscription-id>
+```
+
+The bootstrap **does create and configure the GitHub workload repository**. It uses the Terraform GitHub provider to create the private repository, `plan` and `apply` environments, environment variables, generated files, and workflows. A GitHub personal access token (PAT) is therefore required only while planning and applying bootstrap; generated workload workflows use Azure OIDC and do not use this PAT.
+
+Create a classic PAT for the target GitHub owner with the `repo` scope. The authenticated GitHub user must be allowed to create private repositories and administer Actions and environments for that owner. If the target is an organization, authorize the token for SAML SSO when required and ensure organization policy permits PAT access and repository creation.
+
+Set the token for the current PowerShell process without displaying it:
+
+```powershell
+$env:GITHUB_TOKEN = Read-Host 'GitHub PAT' -MaskInput
+```
+
+Alternatively, when GitHub CLI is already authenticated with equivalent access:
+
+```powershell
+$env:GITHUB_TOKEN = gh auth token
+```
+
+`GH_TOKEN` is also accepted; the module maps it to `GITHUB_TOKEN` in memory for the Terraform provider.
 
 !!! warning "Keep credentials out of shell history"
-    Use your organization's approved secret-handling method to populate the environment variable. Do not commit the token or write it into configuration.
+  Use your organization's approved secret-handling method to populate the environment variable. Do not place the PAT directly in a command, commit it, add it to JSON or Terraform variables, or configure it as a generated repository secret. Remove it from the process after bootstrap with `Remove-Item Env:GITHUB_TOKEN` (and `Remove-Item Env:GH_TOKEN` if used).
+
+!!! note "Fine-grained PATs"
+  A fine-grained PAT can be used only when the organization permits it and the token can administer newly created repositories. It needs repository administration, contents, Actions variables, and environments write access for the target owner. Because repository selection and organization policy can prevent access to a repository that does not exist yet, a classic `repo` PAT is the documented bootstrap path.
 
 ## 4. Import the module
 
@@ -99,6 +125,13 @@ Deploy-AROLandingZone `
 PowerShell confirmation is required. `-AutoApprove` bypasses that prompt and should only be used when an external reviewed control provides equivalent intent.
 
 Bootstrap apply creates the state platform, managed plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. It prints that **no workload apply was triggered**.
+
+After bootstrap succeeds, clear the operator PAT from the shell:
+
+```powershell
+Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+```
 
 ## 7. Add optional workload runtime secrets
 

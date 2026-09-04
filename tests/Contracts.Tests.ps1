@@ -24,6 +24,11 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Match 'azurerm_federated_identity_credential'
         $bootstrap | Should -Not -Match 'azuread_application_password|azuread_service_principal_password'
     }
+    It 'maps GH_TOKEN to the Terraform provider token without persisting it' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'
+        $bootstrap | Should -Not -Match 'variable\s+"github_token"|token\s*=\s*var\.github'
+    }
     It 'provisions Application Gateway rather than a preview contract' {
         $workload | Should -Match 'resource "azurerm_application_gateway" "aro"'
         $workload | Should -Match 'WAF_v2'
