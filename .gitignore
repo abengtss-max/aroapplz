@@ -15,6 +15,9 @@ config/local.*
 # PowerShell
 *.clixml
 
+# Documentation build output
+site/
+
 # Editors/OS
 .vscode/
 .DS_Store

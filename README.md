@@ -2,6 +2,8 @@
 
 A concise PowerShell and Terraform accelerator for a private Azure Red Hat OpenShift (ARO) application landing zone. It bootstraps Azure state, Microsoft Entra workload identities, and a GitHub delivery repository; the generated repository then deploys the workload through reviewed plans.
 
+> **Documentation:** [abengtss-max.github.io/aroapplz](https://abengtss-max.github.io/aroapplz/) — start with the [quickstart](https://abengtss-max.github.io/aroapplz/get-started/quickstart/) or review [how it works](https://abengtss-max.github.io/aroapplz/concepts/how-it-works/).
+
 ## Implemented scope
 
 - Exactly two modes: `standalone` and `spoke`.
@@ -19,7 +21,18 @@ No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` 
 
 ## Start
 
-See [Quickstart](docs/quickstart.md), [configuration](docs/configuration.md), and [architecture](docs/architecture.md). Import [ALZ.ARO/ALZ.ARO.psd1](ALZ.ARO/ALZ.ARO.psd1), prepare an input based on [config/standalone.json](config/standalone.json) or [config/spoke.json](config/spoke.json), then invoke `Deploy-AROLandingZone`.
+See the documentation [quickstart](https://abengtss-max.github.io/aroapplz/get-started/quickstart/), [configuration reference](https://abengtss-max.github.io/aroapplz/reference/configuration/), and [architecture](https://abengtss-max.github.io/aroapplz/concepts/how-it-works/). Import [ALZ.ARO/ALZ.ARO.psd1](ALZ.ARO/ALZ.ARO.psd1), prepare an input based on [config/standalone.json](config/standalone.json) or [config/spoke.json](config/spoke.json), then invoke `Deploy-AROLandingZone`.
+
+## Documentation development
+
+Install the pinned documentation dependencies and run the same strict build used by GitHub Pages:
+
+```powershell
+python -m pip install -r requirements-docs.txt
+python -m mkdocs build --strict
+```
+
+For an interactive local preview, run `python -m mkdocs serve` and stop it when finished. See [CONTRIBUTING.md](CONTRIBUTING.md) for repository validation and contribution boundaries.
 
 ## Security boundaries
 
