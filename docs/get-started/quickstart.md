@@ -2,9 +2,39 @@
 
 This workflow is intentionally plan first. Bootstrap and workload are separate Terraform stages, and the workload is never applied automatically by the module.
 
-## 1. Prepare local configuration
+## 1. Clone the repository
 
-Clone the repository, then copy the sample matching the selected mode to the ignored local path:
+Choose one method, then enter the cloned project directory before running any other command on this page.
+
+=== "HTTPS"
+
+  ```powershell
+  git clone https://github.com/abengtss-max/aroapplz.git
+  Set-Location ./aroapplz
+  ```
+
+=== "GitHub CLI"
+
+  ```powershell
+  gh repo clone abengtss-max/aroapplz
+  Set-Location ./aroapplz
+  ```
+
+Confirm that the expected module and sample configurations are present:
+
+```powershell
+Test-Path ./ALZ.ARO/ALZ.ARO.psd1
+Get-ChildItem ./config/*.json
+```
+
+`Test-Path` should return `True`, and the configuration command should list the `standalone.json` and `spoke.json` samples.
+
+!!! tip "Already cloned?"
+  Run `Set-Location <path-to-your-clone>` and continue with step 2. All paths below are relative to the repository root.
+
+## 2. Prepare local configuration
+
+Copy the sample matching the selected mode to the ignored local path:
 
 === "standalone"
 
@@ -20,14 +50,14 @@ Clone the repository, then copy the sample matching the selected mode to the ign
 
 Replace every placeholder and review the [configuration reference](../reference/configuration.md). Do not put secrets in this JSON file. Leave `aro_version` empty for regional discovery or provide an exact version for validation.
 
-## 2. Authenticate
+## 3. Authenticate
 
 Authenticate Azure CLI and select or verify access to the required subscriptions. Set a GitHub token only in the current process environment as `GITHUB_TOKEN` or `GH_TOKEN`.
 
 !!! warning "Keep credentials out of shell history"
     Use your organization's approved secret-handling method to populate the environment variable. Do not commit the token or write it into configuration.
 
-## 3. Import the module
+## 4. Import the module
 
 Import the repository module directly:
 
@@ -39,7 +69,7 @@ Alternatively, run `./install.ps1` to copy it into the current user's PowerShell
 
 Importing the module performs no cloud operation.
 
-## 4. Generate the bootstrap plan
+## 5. Generate the bootstrap plan
 
 ```powershell
 Deploy-AROLandingZone -InputConfigPath ./config/local.json
@@ -56,7 +86,7 @@ The default `BootstrapAction` is `plan`. The command:
 
 Review the plan and the generated `bootstrap/alz/github/terraform.tfvars.json`. Both are local artifacts and must remain uncommitted.
 
-## 5. Explicitly apply bootstrap
+## 6. Explicitly apply bootstrap
 
 After review, invoke the module again with apply selected:
 
@@ -70,7 +100,7 @@ PowerShell confirmation is required. `-AutoApprove` bypasses that prompt and sho
 
 Bootstrap apply creates the state platform, Entra plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. It prints that **no workload apply was triggered**.
 
-## 6. Add workload runtime secrets
+## 7. Add workload runtime secrets
 
 In both generated `plan` and `apply` GitHub environments, configure:
 
@@ -82,7 +112,7 @@ In both generated `plan` and `apply` GitHub environments, configure:
 
 The ARO client secret and optional pull secret are runtime secrets. GitHub's Azure login uses OIDC and does not use these values.
 
-## 7. Review and deploy the workload
+## 8. Review and deploy the workload
 
 1. Open a pull request in the generated repository so CI can run formatting, validation, Checkov, and a speculative plan.
 2. Merge an approved change according to team policy.
@@ -92,7 +122,7 @@ The ARO client secret and optional pull secret are runtime secrets. GitHub's Azu
 
 There is no automatic workload apply.
 
-## 8. Validate the result
+## 9. Validate the result
 
 Confirm the expected resource group, VNet, control-plane and worker subnets, private ARO cluster, and Terraform outputs. For `spoke`, also verify both peerings, effective routes, firewall/NVA handling, DNS, and outbound reachability. Follow the [validation guide](../operations/validation.md) and your organization's ARO operational checks.
 
