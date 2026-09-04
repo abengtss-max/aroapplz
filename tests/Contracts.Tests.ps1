@@ -29,6 +29,13 @@ Describe 'Architecture contracts' {
         $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'
         $bootstrap | Should -Not -Match 'variable\s+"github_token"|token\s*=\s*var\.github'
     }
+    It 'documents the GitHub bootstrap PAT scopes' {
+        $quickstart = Get-Content (Join-Path $root 'docs\get-started\quickstart.md') -Raw
+        $quickstart | Should -Match '`repo`'
+        $quickstart | Should -Match '`workflow`'
+        $quickstart | Should -Match '`read:org`'
+        $quickstart | Should -Match 'No `admin:org`, `delete_repo`'
+    }
     It 'provisions Application Gateway rather than a preview contract' {
         $workload | Should -Match 'resource "azurerm_application_gateway" "aro"'
         $workload | Should -Match 'WAF_v2'

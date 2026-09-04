@@ -61,7 +61,17 @@ az account set --subscription <bootstrap-subscription-id>
 
 The bootstrap **does create and configure the GitHub workload repository**. It uses the Terraform GitHub provider to create the private repository, `plan` and `apply` environments, environment variables, generated files, and workflows. A GitHub personal access token (PAT) is therefore required only while planning and applying bootstrap; generated workload workflows use Azure OIDC and do not use this PAT.
 
-Create a classic PAT for the target GitHub owner with the `repo` scope. The authenticated GitHub user must be allowed to create private repositories and administer Actions and environments for that owner. If the target is an organization, authorize the token for SAML SSO when required and ensure organization policy permits PAT access and repository creation.
+Create a classic PAT for the target GitHub owner with these scopes:
+
+| Classic PAT scope | When required | Why bootstrap needs it |
+| --- | --- | --- |
+| `repo` | Always | Creates and administers the private repository, environments, Actions variables, and generated files |
+| `workflow` | Always | Writes the generated workflow files below `.github/workflows` |
+| `read:org` | Organization target | Reads organization context and membership while managing an organization-owned repository |
+
+No `admin:org`, `delete_repo`, `packages`, or Azure permission is required by the documented bootstrap. The token owner must independently have permission to create private repositories for the configured user or organization and administer the created repository. A PAT cannot grant privileges that its owner does not have.
+
+If the target is an organization, authorize the token for SAML SSO when required and ensure organization policy permits PAT access and repository creation.
 
 Set the token for the current PowerShell process without displaying it:
 
@@ -81,7 +91,7 @@ $env:GITHUB_TOKEN = gh auth token
   Use your organization's approved secret-handling method to populate the environment variable. Do not place the PAT directly in a command, commit it, add it to JSON or Terraform variables, or configure it as a generated repository secret. Remove it from the process after bootstrap with `Remove-Item Env:GITHUB_TOKEN` (and `Remove-Item Env:GH_TOKEN` if used).
 
 !!! note "Fine-grained PATs"
-  A fine-grained PAT can be used only when the organization permits it and the token can administer newly created repositories. It needs repository administration, contents, Actions variables, and environments write access for the target owner. Because repository selection and organization policy can prevent access to a repository that does not exist yet, a classic `repo` PAT is the documented bootstrap path.
+  A fine-grained PAT can be used only when the organization permits it and the token can access repositories created after the token was issued. Select the target organization as **Resource owner**, select **All repositories**, and grant repository permissions **Administration: Read and write**, **Contents: Read and write**, **Environments: Read and write**, **Actions: Read and write**, **Variables: Read and write**, and **Workflows: Read and write**. Because the target repository does not exist when the token is created, repository selection and organization policy can still prevent bootstrap. The tested and documented default is therefore a classic PAT with `repo`, `workflow`, and—when targeting an organization—`read:org`.
 
 ## 4. Import the module
 
