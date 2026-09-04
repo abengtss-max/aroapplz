@@ -7,4 +7,4 @@
 - Test restore procedures for state blobs and retain platform records for the external hub/NVA dependencies.
 - Use the manual destroy workflow only from the default branch with `DELETE`, the current full SHA, and protected-environment approval. Destroy workload resources before separately retiring bootstrap resources.
 
-Ingress integrations are operator-owned follow-on work in this release. Application Gateway remains preview and provisions no gateway.
+Front Door remains operator-owned follow-on work. When selected, Application Gateway is Terraform-owned; monitor its WAF, backend health, public IP, certificates, and Log Analytics diagnostics.

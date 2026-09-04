@@ -114,9 +114,9 @@ Creates and owns the new ARO VNet and both ARO subnets, bidirectionally peers th
 
 ## Security model
 
-GitHub-to-Azure authentication is secretless: bootstrap creates separate Microsoft Entra applications and service principals for plan and apply, each with a GitHub-environment federated credential. The plan principal receives workload-subscription `Reader`; the apply principal currently receives workload-subscription `Contributor`; both receive state-container data access.
+GitHub-to-Azure authentication is secretless: bootstrap creates separate user-assigned managed identities for plan and apply, each with a GitHub-environment federated credential. The plan identity receives workload-subscription `Reader`; the apply identity receives workload-subscription `Contributor` and `Role Based Access Control Administrator`; both receive state-container data access.
 
-The **ARO service principal is different**. Its client secret remains a protected runtime secret and a sensitive Terraform input because the ARO API requires it. The optional Red Hat pull secret is handled the same way. Neither belongs in configuration JSON.
+ARO also uses managed identities: one cluster identity and eight platform workload identities with purpose-built ARO roles. No ARO client secret is required. The optional Red Hat pull secret and Application Gateway certificate values remain protected runtime inputs and do not belong in configuration JSON.
 
 [Understand identity boundaries →](reference/identity.md)
 
@@ -126,9 +126,9 @@ The **ARO service principal is different**. Its client secret remains a protecte
 | --- | --- |
 | `none` | Default. No external ingress integration contract is selected. |
 | `front_door` | Records a follow-on integration contract only; Front Door is not provisioned. |
-| `application_gateway` | Preview contract, disabled by default; an Application Gateway is not provisioned. |
+| `application_gateway` | Provisions WAF_v2, dedicated subnet, private ARO backend, HTTPS probe, and diagnostics. |
 
-The ARO API and ingress profiles created by the workload are private. Operators own any follow-on ingress integration.
+The ARO API and ingress profiles created by the workload are private. Operators own Front Door follow-on integration and Application Gateway DNS/certificate lifecycle.
 
 ## Cost and responsibility
 

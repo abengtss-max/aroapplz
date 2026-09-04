@@ -9,8 +9,8 @@ locals {
     state_resource_group = "rg-${local.normalized}-bootstrap"
     state_storage        = substr("st${local.compact}tf", 0, 24)
     repository           = local.normalized
-    plan_application     = "app-${local.normalized}-plan"
-    apply_application    = "app-${local.normalized}-apply"
+    plan_identity        = "id-${local.normalized}-plan"
+    apply_identity       = "id-${local.normalized}-apply"
   }
 }
 

@@ -56,13 +56,13 @@ resource "github_repository_file" "managed" {
 
 locals {
   repository_variables = {
-    AZURE_TENANT_ID                   = var.tenant_id
-    AZURE_SUBSCRIPTION_ID             = var.workload_subscription_id
-    CONNECTIVITY_SUBSCRIPTION_ID      = var.connectivity_subscription_id
-    TF_BACKEND_RESOURCE_GROUP         = var.backend_resource_group_name
-    TF_BACKEND_STORAGE_ACCOUNT        = var.backend_storage_account_name
-    TF_BACKEND_CONTAINER              = var.backend_container_name
-    TF_BACKEND_KEY                    = "aro.tfstate"
+    AZURE_TENANT_ID              = var.tenant_id
+    AZURE_SUBSCRIPTION_ID        = var.workload_subscription_id
+    CONNECTIVITY_SUBSCRIPTION_ID = var.connectivity_subscription_id
+    TF_BACKEND_RESOURCE_GROUP    = var.backend_resource_group_name
+    TF_BACKEND_STORAGE_ACCOUNT   = var.backend_storage_account_name
+    TF_BACKEND_CONTAINER         = var.backend_container_name
+    TF_BACKEND_KEY               = "aro.tfstate"
   }
 }
 

@@ -1,7 +1,8 @@
-name: Terraform CI
+name: 01 ARO Landing Zone Continuous Integration
 
 on:
   pull_request:
+    branches: [main]
     paths:
       - 'terraform/**'
       - '.github/workflows/**'
@@ -12,51 +13,14 @@ permissions:
   security-events: write
 
 concurrency:
-  group: terraform-ci-${{ github.event.pull_request.number }}
+  group: aro-ci-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  validate-plan:
-    environment: plan
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform
-    env:
-      ARM_USE_OIDC: 'true'
-      ARM_USE_AZUREAD: 'true'
-      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      TF_VAR_aro_service_principal_client_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_ID }}
-      TF_VAR_aro_service_principal_client_secret: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_SECRET }}
-      TF_VAR_aro_service_principal_object_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_OBJECT_ID }}
-      TF_VAR_aro_resource_provider_object_id: ${{ secrets.ARO_RESOURCE_PROVIDER_OBJECT_ID }}
-      TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.9.8'
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Format
-        run: terraform fmt -check -recursive
-      - name: Initialize
-        run: terraform init -input=false
-      - name: Validate
-        run: terraform validate -no-color
-      - name: Security scan
-        run: |
-          python -m pip install --disable-pip-version-check checkov
-          checkov --directory . --config-file ../.checkov.yaml
-      - name: Plan
-        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pr-plan-${{ github.event.pull_request.head.sha }}
-          path: terraform/tfplan
-          retention-days: 5
+  CI:
+    uses: ./.github/workflows/ci-template.yml
+    with:
+      environment: plan
+      runner_label: ubuntu-latest
+      working_directory: terraform
+    secrets: inherit

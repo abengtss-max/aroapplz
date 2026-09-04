@@ -1,4 +1,4 @@
-name: Terraform protected apply
+name: 02 ARO Landing Zone Continuous Delivery
 
 on:
   workflow_dispatch:
@@ -13,69 +13,16 @@ permissions:
   id-token: write
 
 concurrency:
-  group: terraform-apply
+  group: aro-terraform-apply
   cancel-in-progress: false
 
 jobs:
-  plan:
-    environment: plan
-    runs-on: ubuntu-latest
-    defaults: { run: { working-directory: terraform } }
-    env: &terraform-env
-      ARM_USE_OIDC: 'true'
-      ARM_USE_AZUREAD: 'true'
-      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      TF_VAR_aro_service_principal_client_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_ID }}
-      TF_VAR_aro_service_principal_client_secret: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_SECRET }}
-      TF_VAR_aro_service_principal_object_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_OBJECT_ID }}
-      TF_VAR_aro_resource_provider_object_id: ${{ secrets.ARO_RESOURCE_PROVIDER_OBJECT_ID }}
-      TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: '${{ inputs.ref_sha }}' }
-      - name: Verify immutable SHA
-        shell: bash
-        run: |
-          [[ "${{ inputs.ref_sha }}" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse HEAD)" = "${{ inputs.ref_sha }}"
-      - uses: hashicorp/setup-terraform@v3
-        with: { terraform_version: '1.9.8' }
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - run: terraform init -input=false
-      - run: terraform validate -no-color
-      - run: terraform plan -input=false -lock-timeout=5m -out=tfplan
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apply-plan-${{ inputs.ref_sha }}
-          path: terraform/tfplan
-          retention-days: 1
-
-  apply:
-    needs: plan
-    environment: apply
-    runs-on: ubuntu-latest
-    defaults: { run: { working-directory: terraform } }
-    env: *terraform-env
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: '${{ inputs.ref_sha }}' }
-      - uses: hashicorp/setup-terraform@v3
-        with: { terraform_version: '1.9.8' }
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - run: terraform init -input=false
-      - uses: actions/download-artifact@v4
-        with:
-          name: apply-plan-${{ inputs.ref_sha }}
-          path: terraform
-      - name: Apply the exact reviewed plan
-        run: terraform apply -input=false -lock-timeout=5m tfplan
+  CD:
+    uses: ./.github/workflows/cd-template.yml
+    with:
+      ref_sha: ${{ inputs.ref_sha }}
+      plan_environment: plan
+      apply_environment: apply
+      runner_label: ubuntu-latest
+      working_directory: terraform
+    secrets: inherit

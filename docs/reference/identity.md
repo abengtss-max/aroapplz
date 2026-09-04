@@ -1,6 +1,6 @@
 # Identity and authorization
 
-aroapplz keeps GitHub pipeline identity separate from the service principal required by ARO itself.
+aroapplz uses separate user-assigned managed identities for GitHub delivery and ARO platform operations.
 
 ## Bootstrap operator
 
@@ -10,25 +10,25 @@ The operator must be authorized to create the configured Azure, Entra, RBAC, rep
 
 ## GitHub OIDC identities
 
-Bootstrap creates two Microsoft Entra applications and corresponding service principals:
+Bootstrap creates two user-assigned managed identities:
 
 | Identity | Azure role | Scope | State access |
 | --- | --- | --- | --- |
 | Plan | `Reader` | Workload subscription | `Storage Blob Data Contributor` on workload state container |
-| Apply | `Contributor` | Workload subscription | `Storage Blob Data Contributor` on workload state container |
+| Apply | `Contributor` and `Role Based Access Control Administrator` | Workload subscription | `Storage Blob Data Contributor` on workload state container |
 
-Each application receives one federated credential scoped to its GitHub environment. Subjects follow `repo:<owner>/<repo>:environment:plan` and `repo:<owner>/<repo>:environment:apply`.
+Each managed identity receives one federated credential scoped to its GitHub environment. Subjects follow `repo:<owner>/<repo>:environment:plan` and `repo:<owner>/<repo>:environment:apply`.
 
 Generated workflows set `ARM_USE_OIDC=true` and use the environment-specific client ID. Bootstrap creates no Azure application password/client secret for these GitHub identities.
 
 !!! warning "Current apply scope"
-    The apply principal is subscription-scoped because workload Terraform creates its resource group later. This is broad. Organizations can pre-create an appropriate deployment scope and substitute a tested custom role, but must preserve every permission required for ARO, networking, ARO-related role assignments, and resource-group lifecycle.
+    The apply identity is subscription-scoped because workload Terraform creates its resource group and ARO role assignments later. This is broad. Organizations can pre-create an appropriate deployment scope and substitute tested custom roles, but must preserve resource lifecycle and role-assignment permissions.
 
-## ARO service principal
+## ARO managed identities
 
-ARO provisioning still requires a dedicated service principal. The generated workflow receives its client ID, object ID, and client secret at runtime. The client secret is a sensitive Terraform variable and can therefore be present in protected workflow runtime and Terraform state; protect both accordingly.
+ARO provisioning creates one cluster user-assigned identity and eight platform workload identities: `aro-operator`, `cloud-controller-manager`, `cloud-network-config`, `disk-csi-driver`, `file-csi-driver`, `image-registry`, `ingress`, and `machine-api`.
 
-This ARO principal is not the plan identity and is not the apply identity. GitHub OIDC does not remove the ARO API's service-principal secret requirement.
+Terraform assigns each identity its ARO built-in role at the narrowest supported VNet, subnet, route-table, or identity scope. The cluster identity receives `Azure Red Hat OpenShift Federated Credential` on every operator identity. The Microsoft-managed ARO resource provider receives `Azure Red Hat OpenShift First Party Network` on the ARO VNet. No ARO client secret is created or stored.
 
 ## Red Hat pull secret
 
@@ -41,7 +41,7 @@ Workload Terraform state uses Azure Storage with Microsoft Entra data-plane auth
 ## Rotation and review
 
 - Review plan/apply federated subjects and role assignments after repository or environment changes.
-- Rotate the ARO service-principal secret using the organization's approved procedure and update both protected environments.
+- Review all ARO managed-identity and federated-credential role assignments after version upgrades.
 - Rotate the optional Red Hat pull secret when required.
 - Audit access to GitHub environments and the state container.
 - Revalidate custom-role changes against plans before reducing permissions.

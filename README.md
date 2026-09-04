@@ -10,14 +10,14 @@ A concise PowerShell and Terraform accelerator for a private Azure Red Hat OpenS
 - Both modes create and own a new resource group, ARO VNet, control-plane subnet, worker subnet, and ARO cluster.
 - `spoke` creates bidirectional peerings to an existing hub and a default UDR to an existing firewall/NVA. It never creates the hub, firewall, or NVA.
 - Exact ARO version discovery/validation through `az aro get-versions --location`; the pin is persisted to JSON before bootstrap planning.
-- Bootstrap creates hardened Azure Storage state, Entra applications/service principals for plan and apply, GitHub-environment OIDC credentials, RBAC, a private repository, environments, variables, files, and workflows.
+- Bootstrap creates hardened Azure Storage state, user-assigned managed identities for plan and apply, GitHub-environment OIDC credentials, RBAC, a private repository, environments, variables, files, and workflows.
 - Workload CI performs formatting, validation, Checkov, and planning. CD plans a selected immutable SHA and applies the exact artifact after `apply` environment approval. Destroy is manual-only and guarded by confirmation, default-branch, and SHA checks.
 
 No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` defaults to bootstrap **plan**. Bootstrap apply creates the delivery platform but does not automatically apply the ARO workload.
 
 ## Ingress status
 
-`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door is currently a follow-on integration contract only. Application Gateway is explicitly **preview**, disabled by default, and represented by a contract resource; it does not provision a gateway. The ARO API and ingress profiles are private.
+`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door is a follow-on integration contract. Application Gateway provisions a dedicated subnet, public IP, WAF_v2 gateway, private ARO ingress backend, HTTPS probe, and Log Analytics diagnostics. The ARO API and ingress profiles remain private.
 
 ## Start
 
@@ -36,9 +36,9 @@ For an interactive local preview, run `python -m mkdocs serve` and stop it when 
 
 ## Security boundaries
 
-The bootstrap creates no Azure client secret for GitHub. GitHub uses client IDs plus OIDC. The operator supplies GitHub provider authentication at runtime. ARO's own service-principal secret and optional Red Hat pull secret are separate runtime inputs in protected GitHub environments and are not placed in generated configuration.
+The bootstrap creates no Azure client secret for GitHub or ARO. GitHub uses managed-identity client IDs plus OIDC. ARO uses one cluster identity and eight platform workload identities. The operator supplies GitHub provider authentication at runtime. The optional Red Hat pull secret and the PFX values required when Application Gateway is enabled are protected runtime inputs and are not placed in generated configuration.
 
-The apply principal currently receives Azure `Contributor` at workload-subscription scope because the workload resource group does not exist during bootstrap. Tighten this using a pre-created scope/custom role where organizational policy permits. The plan principal receives `Reader`; both receive state-container data access.
+The apply identity receives Azure `Contributor` and `Role Based Access Control Administrator` at workload-subscription scope because the workload resource group and required least-privilege ARO role assignments do not exist during bootstrap. Tighten these using a pre-created scope/custom role where organizational policy permits. The plan identity receives `Reader`; both receive state-container data access.
 
 ## Attribution
 

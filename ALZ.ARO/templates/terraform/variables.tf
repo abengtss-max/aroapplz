@@ -55,12 +55,6 @@ variable "worker_node_count" {
     error_message = "ARO requires at least three worker nodes."
   }
 }
-variable "aro_service_principal_client_id" { type = string }
-variable "aro_service_principal_client_secret" {
-  type      = string
-  sensitive = true
-}
-variable "aro_service_principal_object_id" { type = string }
 variable "aro_resource_provider_object_id" { type = string }
 variable "pull_secret" {
   type      = string
@@ -83,6 +77,38 @@ variable "ingress_mode" {
     condition     = contains(["none", "front_door", "application_gateway"], var.ingress_mode)
     error_message = "ingress_mode must be exactly none, front_door, or application_gateway."
   }
+}
+variable "application_gateway_subnet_cidr" {
+  description = "Dedicated Application Gateway subnet CIDR. Required when ingress_mode is application_gateway."
+  type        = string
+  default     = ""
+}
+variable "application_gateway_backend_host_name" {
+  description = "A routable OpenShift application host used by the HTTPS health probe. Required when ingress_mode is application_gateway."
+  type        = string
+  default     = ""
+}
+variable "application_gateway_capacity" {
+  type    = number
+  default = 2
+  validation {
+    condition     = var.application_gateway_capacity >= 1 && var.application_gateway_capacity <= 10
+    error_message = "application_gateway_capacity must be between 1 and 10."
+  }
+}
+variable "application_gateway_ssl_certificate_data" {
+  description = "Base64-encoded PFX certificate required for Application Gateway. Supply at runtime through TF_VAR_application_gateway_ssl_certificate_data."
+  type        = string
+  sensitive   = true
+  default     = null
+  nullable    = true
+}
+variable "application_gateway_ssl_certificate_password" {
+  description = "PFX password required for Application Gateway. Supply at runtime through TF_VAR_application_gateway_ssl_certificate_password."
+  type        = string
+  sensitive   = true
+  default     = null
+  nullable    = true
 }
 variable "tags" {
   type    = map(string)

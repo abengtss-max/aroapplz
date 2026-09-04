@@ -18,15 +18,15 @@ The implemented ARO API and ingress profiles are private. Any approved access pa
 
 ## Does it deploy Front Door or Application Gateway?
 
-No complete edge service is provisioned. `front_door` is a follow-on integration contract. `application_gateway` is a preview contract and provisions no gateway. `none` is the default.
+`front_door` is a follow-on integration contract. `application_gateway` provisions a WAF_v2 gateway with public frontend, private ARO ingress backend, HTTPS health probe, and Log Analytics diagnostics. `none` is the default.
 
 ## Is Azure authentication secretless?
 
-For GitHub pipelines, yes: separate plan/apply service principals use GitHub OIDC and have no Azure client secret. ARO itself still requires a dedicated service-principal client secret as a protected runtime value.
+Yes. Separate plan/apply managed identities use GitHub OIDC, and ARO uses cluster and platform workload managed identities. No Azure client secret is required.
 
 ## Where should ARO secrets go?
 
-Add the generated runtime values to both protected GitHub `plan` and `apply` environments. Never put the ARO client secret or optional Red Hat pull secret in local configuration, generated source, logs, or pull requests.
+Add the optional Red Hat pull secret and Application Gateway PFX values to both protected GitHub environments when required. Never put them in local configuration, generated source, logs, or pull requests.
 
 ## How is the ARO version selected?
 

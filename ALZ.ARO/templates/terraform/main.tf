@@ -13,6 +13,23 @@ resource "terraform_data" "input_contract" {
       condition     = var.deployment_mode != "spoke" || startswith(lower(var.hub_vnet_id), "/subscriptions/${lower(var.connectivity_subscription_id)}/")
       error_message = "hub_vnet_id must belong to connectivity_subscription_id."
     }
+    precondition {
+      condition = var.ingress_mode != "application_gateway" || (
+        var.application_gateway_subnet_cidr != "" &&
+        var.application_gateway_backend_host_name != ""
+      )
+      error_message = "application_gateway requires application_gateway_subnet_cidr and application_gateway_backend_host_name."
+    }
+    precondition {
+      condition = (
+        length(trimspace(coalesce(var.application_gateway_ssl_certificate_data, ""))) == 0 &&
+        length(coalesce(var.application_gateway_ssl_certificate_password, "")) == 0
+        ) || (
+        length(trimspace(coalesce(var.application_gateway_ssl_certificate_data, ""))) > 0 &&
+        length(coalesce(var.application_gateway_ssl_certificate_password, "")) > 0
+      )
+      error_message = "Application Gateway PFX data and password must either both be set or both be omitted."
+    }
   }
 }
 

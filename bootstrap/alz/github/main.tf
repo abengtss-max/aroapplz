@@ -30,6 +30,9 @@ locals {
         }
       }
     EOT
+    "terraform/aro-resource-provider.auto.tfvars.json" = jsonencode({
+      aro_resource_provider_object_id = module.azure.aro_resource_provider_object_id
+    })
   }
 }
 

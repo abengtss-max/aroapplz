@@ -40,7 +40,7 @@ The accelerator references the existing hub and next hop but never creates or ma
 
 ## Identity governance
 
-The plan identity receives workload-subscription `Reader`; the apply identity currently receives workload-subscription `Contributor`; both receive state-container data access. Review these assignments against policy.
+The plan identity receives workload-subscription `Reader`; the apply identity receives workload-subscription `Contributor` and `Role Based Access Control Administrator`; both receive state-container data access. Review these assignments against policy.
 
 The apply scope exists because the resource group is created later by workload Terraform. A platform may pre-create a narrower scope and implement a tested custom role, provided all ARO, networking, role-assignment, and resource-group lifecycle needs are retained.
 

@@ -17,5 +17,7 @@
   "worker_subnet_cidr": "10.40.4.0/22",
   "hub_vnet_id": "",
   "next_hop_ip": "",
-  "ingress_mode": "none"
+  "ingress_mode": "none",
+  "application_gateway_subnet_cidr": "",
+  "application_gateway_backend_host_name": ""
 }

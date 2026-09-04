@@ -98,19 +98,13 @@ Deploy-AROLandingZone `
 
 PowerShell confirmation is required. `-AutoApprove` bypasses that prompt and should only be used when an external reviewed control provides equivalent intent.
 
-Bootstrap apply creates the state platform, Entra plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. It prints that **no workload apply was triggered**.
+Bootstrap apply creates the state platform, managed plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. It prints that **no workload apply was triggered**.
 
-## 7. Add workload runtime secrets
+## 7. Add optional workload runtime secrets
 
-In both generated `plan` and `apply` GitHub environments, configure:
+In both generated `plan` and `apply` GitHub environments, configure `REDHAT_PULL_SECRET` when used. For Application Gateway HTTPS, also configure `APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA` with base64 PFX content and `APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD`.
 
-- `ARO_SERVICE_PRINCIPAL_CLIENT_ID`
-- `ARO_SERVICE_PRINCIPAL_CLIENT_SECRET`
-- `ARO_SERVICE_PRINCIPAL_OBJECT_ID`
-- `ARO_RESOURCE_PROVIDER_OBJECT_ID`
-- `REDHAT_PULL_SECRET` when used
-
-The ARO client secret and optional pull secret are runtime secrets. GitHub's Azure login uses OIDC and does not use these values.
+GitHub and ARO both use user-assigned managed identities. There is no ARO client secret to configure.
 
 ## 8. Review and deploy the workload
 

@@ -19,7 +19,7 @@ The module preflight verifies `az`, `terraform`, Azure CLI authentication, subsc
 The interactive bootstrap operator needs enough access to create and configure:
 
 - the Azure Storage account/container used for workload Terraform state;
-- Microsoft Entra applications and service principals;
+- user-assigned managed identities;
 - federated identity credentials and Azure role assignments;
 - the later workload resources in the target subscriptions.
 
@@ -32,9 +32,9 @@ Prepare and verify:
 - a workload subscription with ARO resource-provider readiness and sufficient regional quota;
 - a unique ARO domain prefix;
 - non-overlapping VNet, control-plane subnet, worker subnet, pod, and service CIDRs;
-- an ARO service principal client ID, object ID, and client secret;
-- the ARO resource-provider object ID;
 - an optional Red Hat pull secret when required by the intended workload.
+
+Bootstrap discovers the Microsoft-managed ARO resource-provider identity. Workload Terraform creates the cluster and operator managed identities and their role assignments.
 
 ARO versions vary by region. The module calls `az aro get-versions --location` against the workload subscription, validates an explicitly supplied version or chooses the newest version returned, and persists the exact result before planning bootstrap.
 

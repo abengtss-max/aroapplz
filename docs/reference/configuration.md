@@ -12,7 +12,7 @@ Copy one to the ignored `config/local.json` before editing.
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `deployment_mode` | Yes | Exactly `standalone` or `spoke` |
-| `tenant_id` | Yes | Microsoft Entra tenant for created applications |
+| `tenant_id` | Yes | Microsoft Entra tenant for managed identities and workload authentication |
 | `bootstrap_subscription_id` | Yes | Subscription for bootstrap Azure resources |
 | `workload_subscription_id` | Yes | Subscription for the new ARO workload |
 | `location` | Yes | Azure region used for resources and ARO version discovery |
@@ -33,6 +33,8 @@ Generated workload names include `rg-<service>-<environment>-aro` and `aro-<serv
 | `aro_vnet_cidr` | Yes | CIDR for the new ARO VNet |
 | `control_plane_subnet_cidr` | Yes | CIDR for the new control-plane subnet |
 | `worker_subnet_cidr` | Yes | CIDR for the new worker subnet |
+| `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |
+| `application_gateway_backend_host_name` | Application Gateway only | Existing OpenShift application hostname used by the HTTPS health probe |
 
 The module persists the exact resolved ARO version into the local JSON before creating bootstrap input.
 
@@ -67,19 +69,13 @@ For `spoke`, the subscription segment in `hub_vnet_id` must equal `connectivity_
 | --- | --- |
 | `none` | Default; no follow-on edge contract selected |
 | `front_door` | Follow-on integration contract; no Front Door deployment |
-| `application_gateway` | Preview contract; no Application Gateway deployment |
+| `application_gateway` | Provisions public WAF_v2 with a private ARO ingress backend and diagnostics |
 
 ## Runtime values: never put these in JSON
 
-Configure the generated GitHub `plan` and `apply` environments with:
+Configure the generated GitHub `plan` and `apply` environments with optional `REDHAT_PULL_SECRET`. When Application Gateway is enabled, configure base64 PFX data as `APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA` and its password as `APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD`. Both values are required because the public listener is HTTPS-only; Terraform rejects an Application Gateway plan when either value is absent.
 
-- `ARO_SERVICE_PRINCIPAL_CLIENT_ID`
-- `ARO_SERVICE_PRINCIPAL_CLIENT_SECRET`
-- `ARO_SERVICE_PRINCIPAL_OBJECT_ID`
-- `ARO_RESOURCE_PROVIDER_OBJECT_ID`
-- optionally `REDHAT_PULL_SECRET`
-
-The ARO client secret and pull secret are sensitive runtime inputs. Keeping all values in protected environments also provides a consistent generated workflow contract. Azure pipeline authentication uses the separate OIDC client IDs created by bootstrap.
+Pipeline and ARO authentication use user-assigned managed identities. The bootstrap discovers the Microsoft-managed ARO resource-provider object ID and writes it to generated Terraform configuration; no operator-managed identity credential belongs in JSON.
 
 ## Command parameters
 
@@ -95,4 +91,4 @@ The ARO client secret and pull secret are sensitive runtime inputs. Keeping all 
 
 ## Workload outputs
 
-The generated Terraform exports cluster ID/name, ARO VNet ID, both subnet IDs, console URL, and a human-readable ingress status. It does not output the ARO service-principal secret.
+The generated Terraform exports cluster ID/name, ARO VNet ID, both ARO subnet IDs, console URL, ingress status, and conditional Application Gateway public IP and FQDN.

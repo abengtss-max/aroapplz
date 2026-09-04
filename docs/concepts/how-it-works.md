@@ -7,12 +7,13 @@ flowchart LR
   Operator[Operator] -->|configuration| Module[ALZ.ARO PowerShell module]
   Module -->|plan, then explicit apply| Bootstrap[Bootstrap Terraform]
   Bootstrap --> State[Azure Storage state]
-  Bootstrap --> Identities[Entra plan/apply apps and SPs]
+  Bootstrap --> Identities[Managed plan/apply identities]
   Bootstrap --> Repo[Private GitHub workload repository]
   Identities -->|environment OIDC| Repo
   Repo -->|PR checks| Plan[Speculative workload plan]
   Repo -->|manual SHA + approval| Apply[Exact workload plan and apply]
-  Apply --> ARO[New private ARO cluster and VNet]
+  Apply --> ARO[New private ARO cluster, identities, and VNet]
+  Apply -. optional .-> AGW[Application Gateway WAF_v2]
   ARO -. spoke only .-> Hub[Existing hub and firewall/NVA]
 ```
 
@@ -25,7 +26,7 @@ The command always creates a bootstrap plan. It applies that exact local plan on
 Bootstrap creates:
 
 - hardened Azure Storage and a container for workload Terraform state;
-- separate Microsoft Entra applications and service principals for plan and apply;
+- separate user-assigned managed identities for plan and apply;
 - environment-scoped GitHub OIDC federated credentials;
 - the implemented Azure role assignments;
 - a private GitHub repository, protected environments, variables, files, and workflows.
@@ -57,12 +58,10 @@ The workload owns its newly created resource group, ARO VNet, ARO subnets, clust
 
 The workload uses separate `azurerm.workload` and `azurerm.connectivity` provider aliases. In `standalone`, hub-related resources have zero instances. In `spoke`, the connectivity alias creates the reverse peering in the existing hub's subscription without treating the hub itself as a managed resource.
 
-## Ingress contracts
-
-Ingress selection records intent but does not provide a complete edge deployment in this release:
+## Ingress options
 
 - `none` is the default;
 - `front_door` is a follow-on integration contract;
-- `application_gateway` is a preview contract and provisions no gateway.
+- `application_gateway` provisions a public WAF_v2 gateway in a dedicated subnet, connects its backend to the private ARO ingress IP over HTTPS, and sends diagnostics to Log Analytics.
 
 The ARO API and ingress profiles created by the workload are private.

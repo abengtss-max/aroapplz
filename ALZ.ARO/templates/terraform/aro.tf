@@ -1,17 +1,9 @@
-resource "azurerm_role_assignment" "aro_service_principal_network" {
-  provider             = azurerm.workload
-  scope                = azurerm_virtual_network.aro.id
-  role_definition_name = "Network Contributor"
-  principal_id         = var.aro_service_principal_object_id
-  principal_type       = "ServicePrincipal"
-}
-
 resource "azurerm_role_assignment" "aro_resource_provider_network" {
-  provider             = azurerm.workload
-  scope                = azurerm_virtual_network.aro.id
-  role_definition_name = "Network Contributor"
-  principal_id         = var.aro_resource_provider_object_id
-  principal_type       = "ServicePrincipal"
+  provider           = azurerm.workload
+  scope              = azurerm_virtual_network.aro.id
+  role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/42f3c60f-e7b1-46d7-ba56-6de681664342"
+  principal_id       = var.aro_resource_provider_object_id
+  principal_type     = "ServicePrincipal"
 }
 
 resource "azurerm_redhat_openshift_cluster" "aro" {
@@ -20,6 +12,11 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   location            = azurerm_resource_group.aro.location
   resource_group_name = azurerm_resource_group.aro.name
   tags                = var.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.aro["aro-cluster"].id]
+  }
 
   cluster_profile {
     domain      = var.aro_domain
@@ -47,13 +44,21 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   api_server_profile { visibility = "Private" }
   ingress_profile { visibility = "Private" }
 
-  service_principal {
-    client_id     = var.aro_service_principal_client_id
-    client_secret = var.aro_service_principal_client_secret
+  platform_workload_identity_profile {
+    dynamic "platform_workload_identity" {
+      for_each = local.aro_operator_identities
+      content {
+        name        = platform_workload_identity.key
+        identity_id = platform_workload_identity.value.id
+      }
+    }
   }
 
   depends_on = [
-    azurerm_role_assignment.aro_service_principal_network,
+    azurerm_role_assignment.cluster_federated_credential,
+    azurerm_role_assignment.operator_subnet,
+    azurerm_role_assignment.operator_vnet,
+    azurerm_role_assignment.operator_route_table,
     azurerm_role_assignment.aro_resource_provider_network,
     azurerm_subnet_route_table_association.control_plane,
     azurerm_subnet_route_table_association.worker,

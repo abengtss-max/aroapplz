@@ -1,4 +1,4 @@
-name: Terraform manual destroy
+name: 03 ARO Landing Zone Manual Destroy
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: terraform-apply
+  group: aro-terraform-apply
   cancel-in-progress: false
 
 jobs:
@@ -31,11 +31,11 @@ jobs:
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      TF_VAR_aro_service_principal_client_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_ID }}
-      TF_VAR_aro_service_principal_client_secret: ${{ secrets.ARO_SERVICE_PRINCIPAL_CLIENT_SECRET }}
-      TF_VAR_aro_service_principal_object_id: ${{ secrets.ARO_SERVICE_PRINCIPAL_OBJECT_ID }}
-      TF_VAR_aro_resource_provider_object_id: ${{ secrets.ARO_RESOURCE_PROVIDER_OBJECT_ID }}
+      DESTROY_CONFIRMATION: ${{ inputs.confirmation }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
       TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
+      TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
+      TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: '${{ inputs.expected_sha }}' }
@@ -43,10 +43,10 @@ jobs:
         shell: bash
         working-directory: .
         run: |
-          test "${{ inputs.confirmation }}" = 'DELETE'
+          test "$DESTROY_CONFIRMATION" = 'DELETE'
           test "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}"
-          [[ "${{ inputs.expected_sha }}" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: '1.9.8' }
       - uses: azure/login@v2

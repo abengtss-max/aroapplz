@@ -1,0 +1,117 @@
+name: ARO CD Template
+
+on:
+  workflow_call:
+    inputs:
+      ref_sha:
+        required: true
+        type: string
+      plan_environment:
+        required: true
+        type: string
+      apply_environment:
+        required: true
+        type: string
+      runner_label:
+        required: false
+        type: string
+        default: ubuntu-latest
+      terraform_version:
+        required: false
+        type: string
+        default: '1.9.8'
+      working_directory:
+        required: false
+        type: string
+        default: terraform
+
+jobs:
+  plan:
+    name: Plan ARO
+    environment: ${{ inputs.plan_environment }}
+    runs-on: ${{ inputs.runner_label }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      EXPECTED_SHA: ${{ inputs.ref_sha }}
+      TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
+      TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
+      TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref_sha }}
+      - name: Verify immutable SHA
+        shell: bash
+        working-directory: .
+        run: |
+          test "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: terraform init -input=false
+      - run: terraform validate -no-color
+      - run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apply-plan-${{ inputs.ref_sha }}
+          path: ${{ inputs.working_directory }}/tfplan
+          retention-days: 1
+
+  apply:
+    name: Apply ARO
+    needs: plan
+    environment: ${{ inputs.apply_environment }}
+    runs-on: ${{ inputs.runner_label }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      EXPECTED_SHA: ${{ inputs.ref_sha }}
+      TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
+      TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
+      TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref_sha }}
+      - name: Verify immutable SHA
+        shell: bash
+        working-directory: .
+        run: |
+          test "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: terraform init -input=false
+      - uses: actions/download-artifact@v4
+        with:
+          name: apply-plan-${{ inputs.ref_sha }}
+          path: ${{ inputs.working_directory }}
+      - name: Apply the exact reviewed plan
+        run: terraform apply -input=false -lock-timeout=5m tfplan

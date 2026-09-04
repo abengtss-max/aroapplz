@@ -1,6 +1,6 @@
 # Bootstrap
 
-The composition in `alz/github` creates only bootstrap resources: hardened Azure Storage state, two Entra applications/service principals with GitHub-environment federated credentials, role assignments, and a private GitHub workload repository with environments, variables, Terraform, and workflows.
+The composition in `alz/github` creates only bootstrap resources: hardened Azure Storage state, two user-assigned managed identities with GitHub-environment federated credentials, role assignments, and a private GitHub workload repository with environments, variables, Terraform, and workflows.
 
 No managed identities or Azure client secrets are created. GitHub provider authentication is supplied at runtime with `GITHUB_TOKEN` or `GH_TOKEN`. The bootstrap state initially remains local; secure it according to organizational policy after first apply. The generated workload state uses the new Azure Storage backend with Entra authorization.
 

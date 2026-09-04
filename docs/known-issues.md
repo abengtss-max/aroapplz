@@ -16,7 +16,7 @@ Both `standalone` and `spoke` create a new ARO VNet and both ARO subnets. The ac
 
 ## Apply role is subscription-scoped
 
-The generated apply service principal receives `Contributor` on the workload subscription because its resource group does not exist during bootstrap. Organizations requiring narrower access need a pre-created scope and tested custom role that still permits the implemented lifecycle.
+The generated apply managed identity receives `Contributor` and `Role Based Access Control Administrator` on the workload subscription because its resource group and required ARO role assignments do not exist during bootstrap. Organizations requiring narrower access need pre-created scopes and tested custom roles that still permit the implemented lifecycle.
 
 ## ARO still needs a client secret
 

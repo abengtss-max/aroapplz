@@ -46,6 +46,8 @@ function New-AROConfigWizard {
         ingress_mode = Read-Host 'Ingress mode (none/front_door/application_gateway; default none)'
     }
     if ([string]::IsNullOrWhiteSpace($config.ingress_mode)) { $config.ingress_mode = 'none' }
+    $config.application_gateway_subnet_cidr = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'Dedicated Application Gateway subnet CIDR' } else { '' }
+    $config.application_gateway_backend_host_name = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'OpenShift application hostname for the gateway health probe' } else { '' }
     $parent = Split-Path -Parent $OutputPath
     if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
@@ -61,6 +63,11 @@ function Assert-AROConfig {
     }
     if ($Config.deployment_mode -notin @('standalone','spoke')) { throw "deployment_mode must be exactly 'standalone' or 'spoke'." }
     if ($Config.ingress_mode -notin @('none','front_door','application_gateway')) { throw "ingress_mode must be exactly 'none', 'front_door', or 'application_gateway'." }
+    if ($Config.ingress_mode -eq 'application_gateway') {
+        foreach ($name in @('application_gateway_subnet_cidr','application_gateway_backend_host_name')) {
+            if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "application_gateway mode requires '$name'." }
+        }
+    }
     if (-not $Config.ContainsKey('apply_approvers') -or @($Config.apply_approvers).Count -eq 0) { throw 'At least one GitHub apply approver is required to protect apply and destroy.' }
     if ($Config.deployment_mode -eq 'spoke') {
         foreach ($name in @('connectivity_subscription_id','hub_vnet_id','next_hop_ip')) {
@@ -134,6 +141,8 @@ function New-BootstrapInput {
         hub_vnet_id = $Config.hub_vnet_id
         next_hop_ip = $Config.next_hop_ip
         ingress_mode = $Config.ingress_mode
+        application_gateway_subnet_cidr = if ($Config.ContainsKey('application_gateway_subnet_cidr')) { $Config.application_gateway_subnet_cidr } else { '' }
+        application_gateway_backend_host_name = if ($Config.ContainsKey('application_gateway_backend_host_name')) { $Config.application_gateway_backend_host_name } else { '' }
     }
     $files['terraform/aro.auto.tfvars.json'] = $workload | ConvertTo-Json -Depth 10
     $input = [ordered]@{
