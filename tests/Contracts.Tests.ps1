@@ -27,6 +27,8 @@ Describe 'Architecture contracts' {
     It 'maps GH_TOKEN to the Terraform provider token without persisting it' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'
+        $module | Should -Match "Invoke-NativeCommand gh @\('auth','token'\)"
+        $module | Should -Match "GitHub rejected GITHUB_TOKEN"
         $bootstrap | Should -Not -Match 'variable\s+"github_token"|token\s*=\s*var\.github'
     }
     It 'documents the GitHub bootstrap PAT scopes' {
@@ -35,6 +37,11 @@ Describe 'Architecture contracts' {
         $quickstart | Should -Match '`workflow`'
         $quickstart | Should -Match '`read:org`'
         $quickstart | Should -Match 'No `admin:org`, `delete_repo`'
+    }
+    It 'excludes Terraform provider caches from generated repository files' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match "notmatch '\(\^\|/\)\\\.terraform/'"
+        $module | Should -Match "notmatch '\\\.\(tfplan\|log\)\$'"
     }
     It 'provisions Application Gateway rather than a preview contract' {
         $workload | Should -Match 'resource "azurerm_application_gateway" "aro"'

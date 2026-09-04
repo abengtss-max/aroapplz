@@ -89,13 +89,53 @@ function Invoke-AROPreflight {
     }
     $account = Invoke-NativeCommand az @('account','show','--output','json') | ConvertFrom-Json
     if (-not $account.id) { throw 'Azure CLI is not authenticated. Run az login.' }
-    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN) -and [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
-        throw 'Set GITHUB_TOKEN or GH_TOKEN for the Terraform GitHub provider. The value is never written or printed.'
-    }
     if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
-        # The Terraform GitHub provider reads GITHUB_TOKEN. Accept GH_TOKEN as
-        # an operator convenience without persisting or printing its value.
-        $env:GITHUB_TOKEN = $env:GH_TOKEN
+        if (-not [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
+            # The Terraform GitHub provider reads GITHUB_TOKEN. Accept GH_TOKEN
+            # without persisting or printing its value.
+            $env:GITHUB_TOKEN = $env:GH_TOKEN
+        }
+        elseif (Get-Command gh -ErrorAction SilentlyContinue) {
+            # Reuse an authenticated GitHub CLI session without exposing the
+            # credential in command history, generated input, or Terraform.
+            $env:GITHUB_TOKEN = Invoke-NativeCommand gh @('auth','token')
+        }
+        else {
+            throw 'Set GITHUB_TOKEN or GH_TOKEN, or authenticate GitHub CLI with gh auth login. The credential is never written or printed.'
+        }
+    }
+
+    $githubHeaders = @{
+        Accept                 = 'application/vnd.github+json'
+        Authorization          = "Bearer $($env:GITHUB_TOKEN)"
+        'X-GitHub-Api-Version' = '2022-11-28'
+        'User-Agent'           = 'ALZ.ARO-bootstrap'
+    }
+    $githubUserResponse = Invoke-WebRequest -Uri 'https://api.github.com/user' -Headers $githubHeaders -SkipHttpErrorCheck
+    if ([int]$githubUserResponse.StatusCode -ne 200) {
+        throw 'GitHub rejected GITHUB_TOKEN. Replace the stale or invalid value (for example: $env:GITHUB_TOKEN = gh auth token) and retry.'
+    }
+    $githubUser = $githubUserResponse.Content | ConvertFrom-Json
+    $owner = [uri]::EscapeDataString([string]$Config.github_organization)
+    $githubOwnerResponse = Invoke-WebRequest -Uri "https://api.github.com/users/$owner" -Headers $githubHeaders -SkipHttpErrorCheck
+    if ([int]$githubOwnerResponse.StatusCode -ne 200) {
+        throw "GitHub owner '$($Config.github_organization)' is unavailable to the supplied credential."
+    }
+    $githubOwner = $githubOwnerResponse.Content | ConvertFrom-Json
+    if ($githubOwner.type -eq 'User' -and $githubUser.login -ne $githubOwner.login) {
+        throw "A personal repository can only be bootstrapped under the authenticated GitHub user '$($githubUser.login)', not '$($githubOwner.login)'."
+    }
+
+    # Classic PATs report scopes in this header. Fine-grained PATs do not, so
+    # their repository permissions remain governed by GitHub API responses.
+    $classicScopes = @([string]$githubUserResponse.Headers['X-OAuth-Scopes'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($classicScopes.Count -gt 0) {
+        $requiredScopes = @('repo', 'workflow')
+        if ($githubOwner.type -eq 'Organization') { $requiredScopes += 'read:org' }
+        $missingScopes = @($requiredScopes | Where-Object { $_ -notin $classicScopes })
+        if ($missingScopes.Count -gt 0) {
+            throw "The classic GitHub PAT is missing required scope(s): $($missingScopes -join ', ')."
+        }
     }
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.bootstrap_subscription_id,'--output','none'))
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.workload_subscription_id,'--output','none'))
@@ -126,7 +166,10 @@ function New-BootstrapInput {
 
     $files = @{}
     $templateRoot = Join-Path $RepositoryRoot 'ALZ.ARO\templates'
-    Get-ChildItem -LiteralPath $templateRoot -File -Recurse | ForEach-Object {
+    Get-ChildItem -LiteralPath $templateRoot -File -Recurse | Where-Object {
+        $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
+        $relative -notmatch '(^|/)\.terraform/' -and $relative -notmatch '\.(tfplan|log)$'
+    } | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
         $files[$relative] = Get-Content -LiteralPath $_.FullName -Raw
     }

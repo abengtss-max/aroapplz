@@ -10,17 +10,17 @@ Both `standalone` and `spoke` create a new ARO VNet and both ARO subnets. The ac
 
 `spoke` requires an existing hub VNet and existing firewall/NVA private IP. aroapplz creates connection resources but no hub, firewall, NVA, DNS platform, or route appliance.
 
-## Ingress integrations are contracts
+## Front Door integration is a contract
 
-`front_door` records follow-on integration intent only. `application_gateway` is preview, disabled by default, and represented by a contract resource; it does not provision a gateway. The workload creates private ARO API and ingress profiles.
+`front_door` records follow-on integration intent only. `application_gateway` provisions a WAF_v2 gateway with an HTTPS frontend, private ARO ingress backend, health probe, NSG, and diagnostics. It requires a dedicated subnet, backend hostname, and protected PFX certificate inputs at runtime. The workload creates private ARO API and ingress profiles.
 
 ## Apply role is subscription-scoped
 
 The generated apply managed identity receives `Contributor` and `Role Based Access Control Administrator` on the workload subscription because its resource group and required ARO role assignments do not exist during bootstrap. Organizations requiring narrower access need pre-created scopes and tested custom roles that still permit the implemented lifecycle.
 
-## ARO still needs a client secret
+## ARO managed identities require role assignments
 
-GitHub-to-Azure authentication uses OIDC, but ARO itself requires a dedicated service-principal client secret. It remains a protected runtime secret and sensitive Terraform input/state value.
+GitHub-to-Azure authentication uses OIDC. ARO uses a cluster user-assigned managed identity and eight platform workload identities rather than a service-principal client secret. The generated apply identity must be allowed to create those identities and their required role assignments.
 
 ## State endpoint is network-public
 

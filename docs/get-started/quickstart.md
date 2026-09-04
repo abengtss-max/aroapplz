@@ -85,7 +85,7 @@ Alternatively, when GitHub CLI is already authenticated with equivalent access:
 $env:GITHUB_TOKEN = gh auth token
 ```
 
-`GH_TOKEN` is also accepted; the module maps it to `GITHUB_TOKEN` in memory for the Terraform provider.
+`GH_TOKEN` is also accepted; the module maps it to `GITHUB_TOKEN` in memory for the Terraform provider. If neither environment variable is set but GitHub CLI is installed and authenticated, the module obtains `gh auth token` directly without printing it. Before Terraform starts, preflight verifies that GitHub accepts the credential, confirms the configured owner, and checks reported classic-PAT scopes. An invalid or stale `GITHUB_TOKEN` is never silently replaced—set it again from `gh auth token` and retry.
 
 !!! warning "Keep credentials out of shell history"
   Use your organization's approved secret-handling method to populate the environment variable. Do not place the PAT directly in a command, commit it, add it to JSON or Terraform variables, or configure it as a generated repository secret. Remove it from the process after bootstrap with `Remove-Item Env:GITHUB_TOKEN` (and `Remove-Item Env:GH_TOKEN` if used).

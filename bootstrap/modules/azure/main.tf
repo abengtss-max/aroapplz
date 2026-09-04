@@ -57,13 +57,12 @@ resource "azurerm_user_assigned_identity" "pipeline" {
 }
 
 resource "azurerm_federated_identity_credential" "github" {
-  for_each            = local.pipelines
-  name                = "github-${each.key}"
-  resource_group_name = azurerm_resource_group.state.name
-  parent_id           = azurerm_user_assigned_identity.pipeline[each.key].id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:${var.github_organization}/${var.github_repository}:environment:${each.key}"
+  for_each  = local.pipelines
+  name      = "github-${each.key}"
+  parent_id = azurerm_user_assigned_identity.pipeline[each.key].id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = "https://token.actions.githubusercontent.com"
+  subject   = "repo:${var.github_organization}/${var.github_repository}:environment:${each.key}"
 }
 
 resource "azurerm_role_assignment" "plan_reader" {
