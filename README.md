@@ -23,7 +23,7 @@ No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` 
 
 See the documentation [quickstart](https://abengtss-max.github.io/aroapplz/get-started/quickstart/), [configuration reference](https://abengtss-max.github.io/aroapplz/reference/configuration/), and [architecture](https://abengtss-max.github.io/aroapplz/concepts/how-it-works/). Import [ALZ.ARO/ALZ.ARO.psd1](ALZ.ARO/ALZ.ARO.psd1), prepare an input based on [config/standalone.json](config/standalone.json) or [config/spoke.json](config/spoke.json), then invoke `Deploy-AROLandingZone`.
 
-GitHub bootstrap requires a runtime-only classic PAT with `repo` and `workflow`; add `read:org` for an organization-owned target. The PAT is used only to create and configure the generated repository and is not used by workload workflows.
+GitHub bootstrap requires a runtime-only classic PAT with `repo` and `workflow`; add `read:org` for an organization-owned target. Bootstrap teardown additionally requires `delete_repo` because it removes the generated repository. The PAT is not used by workload workflows. See the [clean-slate removal guide](https://abengtss-max.github.io/aroapplz/operations/cleanup/) for the required workload-first sequence.
 
 ## Documentation development
 

@@ -69,7 +69,7 @@ Create a classic PAT for the target GitHub owner with these scopes:
 | `workflow` | Always | Writes the generated workflow files below `.github/workflows` |
 | `read:org` | Organization target | Reads organization context and membership while managing an organization-owned repository |
 
-No `admin:org`, `delete_repo`, `packages`, or Azure permission is required by the documented bootstrap. The token owner must independently have permission to create private repositories for the configured user or organization and administer the created repository. A PAT cannot grant privileges that its owner does not have.
+No `admin:org`, `delete_repo`, `packages`, or Azure permission is required to create or update bootstrap. The token owner must independently have permission to create private repositories for the configured user or organization and administer the created repository. A PAT cannot grant privileges that its owner does not have. Later bootstrap teardown requires `delete_repo` because it deletes the generated repository; follow the [clean-slate removal guide](../operations/cleanup.md).
 
 If the target is an organization, authorize the token for SAML SSO when required and ensure organization policy permits PAT access and repository creation.
 
@@ -156,8 +156,8 @@ GitHub and ARO both use user-assigned managed identities. There is no ARO client
 
 1. Open a pull request in the generated repository so CI can run formatting, validation, Checkov, and a speculative plan.
 2. Merge an approved change according to team policy.
-3. Manually dispatch the generated CD workflow with the full immutable commit SHA.
-4. Review the plan created from that SHA.
+3. Manually dispatch **02 ARO Landing Zone Continuous Delivery** from the default branch and select `apply`.
+4. Review the plan created from the workflow-selected commit.
 5. Approve the protected `apply` environment so the workflow applies the exact uploaded plan artifact.
 
 There is no automatic workload apply.
@@ -165,6 +165,12 @@ There is no automatic workload apply.
 ## 9. Validate the result
 
 Confirm the expected resource group, VNet, control-plane and worker subnets, private ARO cluster, and Terraform outputs. For `spoke`, also verify both peerings, effective routes, firewall/NVA handling, DNS, and outbound reachability. Follow the [validation guide](../operations/validation.md) and your organization's ARO operational checks.
+
+## 10. Return to a clean slate
+
+To remove the deployment, destroy the ARO workload through the generated `02` CD workflow first. Then use the source clone's local bootstrap state to review and apply `Deploy-AROLandingZone -BootstrapAction destroy`. This removes the generated GitHub repository, pipeline identities and OIDC credentials, role assignments, state storage, and bootstrap resource group.
+
+Follow the complete [remove workload and bootstrap guide](../operations/cleanup.md). Do not delete the bootstrap state or resource group before workload destroy completes.
 
 ## Configuration-only wizard
 

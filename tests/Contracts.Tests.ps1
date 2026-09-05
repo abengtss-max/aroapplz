@@ -53,6 +53,17 @@ Describe 'Architecture contracts' {
         $quickstart | Should -Match '`read:org`'
         $quickstart | Should -Match 'No `admin:org`, `delete_repo`'
     }
+    It 'provides a plan-first bootstrap destroy path and clean-slate documentation' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $cleanup = Get-Content (Join-Path $root 'docs\operations\cleanup.md') -Raw
+        $module | Should -Match "ValidateSet\('plan','apply','destroy'\)"
+        $module | Should -Match 'terraform @\(''apply'',''-input=false'', \$planPath\)'
+        $module | Should -Match "requiredScopes \+= 'delete_repo'"
+        $cleanup | Should -Match 'Destroy the ARO workload first'
+        $cleanup | Should -Match '-BootstrapAction destroy'
+        $cleanup | Should -Match '-WhatIf'
+        $cleanup | Should -Match 'Only remove local state after both Terraform destroy and verification succeed'
+    }
     It 'excludes Terraform provider caches from generated repository files' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match "notmatch '\(\^\|/\)\\\.terraform/'"

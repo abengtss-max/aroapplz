@@ -6,6 +6,7 @@
 .terraform.lock.hcl
 crash.log
 bootstrap/alz/github/terraform.tfvars.json
+bootstrap-state-backup.json
 
 # Secrets and local configuration
 .env

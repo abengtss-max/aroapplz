@@ -82,7 +82,10 @@ function Assert-AROConfig {
 }
 
 function Invoke-AROPreflight {
-    param([Parameter(Mandatory)][hashtable]$Config)
+    param(
+        [Parameter(Mandatory)][hashtable]$Config,
+        [Parameter(Mandatory)][ValidateSet('plan','apply','destroy')][string]$BootstrapAction
+    )
 
     foreach ($tool in @('az','terraform')) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required command '$tool' is not available on PATH." }
@@ -151,6 +154,7 @@ function Invoke-AROPreflight {
     if ($classicScopes.Count -gt 0) {
         $requiredScopes = @('repo', 'workflow')
         if ($githubOwner.type -eq 'Organization') { $requiredScopes += 'read:org' }
+        if ($BootstrapAction -eq 'destroy') { $requiredScopes += 'delete_repo' }
         $missingScopes = @($requiredScopes | Where-Object { $_ -notin $classicScopes })
         if ($missingScopes.Count -gt 0) {
             throw "The classic GitHub PAT is missing required scope(s): $($missingScopes -join ', ')."
@@ -234,13 +238,13 @@ function Deploy-AROLandingZone {
     .SYNOPSIS
     Generates configuration and plans or applies the ARO landing-zone bootstrap.
     .DESCRIPTION
-    With InputConfigPath, runs noninteractively. Without it, runs a JSON configuration wizard. The selected ARO version is validated and persisted exactly before Terraform is invoked. Secrets are accepted only by Terraform through environment variables and are never printed.
+    With InputConfigPath, runs noninteractively. Without it, runs a JSON configuration wizard. Plan is the default; apply creates bootstrap resources, and destroy removes the generated repository and Azure bootstrap resources through an exact reviewed destroy plan. The selected ARO version is validated and persisted exactly before Terraform is invoked. Secrets are accepted only through environment variables and are never printed.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
     param(
         [string]$InputConfigPath,
         [string]$OutputConfigPath,
-        [ValidateSet('plan','apply')][string]$BootstrapAction = 'plan',
+        [ValidateSet('plan','apply','destroy')][string]$BootstrapAction = 'plan',
         [switch]$GenerateConfig,
         [switch]$AutoApprove
     )
@@ -252,7 +256,7 @@ function Deploy-AROLandingZone {
     Assert-AROConfig $config
     if ($GenerateConfig) { Write-Host "Configuration written to $configPath"; return }
 
-    Invoke-AROPreflight $config
+    Invoke-AROPreflight -Config $config -BootstrapAction $BootstrapAction
     $config.aro_version = Resolve-AROVersion $config
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8NoBOM
     Write-Host "Validated and pinned ARO version $($config.aro_version) in $configPath"
@@ -264,13 +268,23 @@ function Deploy-AROLandingZone {
     try {
         [void](Invoke-NativeCommand terraform @('init','-input=false'))
         [void](Invoke-NativeCommand terraform @('validate','-no-color'))
-        $planPath = Join-Path $bootstrapRoot 'bootstrap.tfplan'
-        [void](Invoke-NativeCommand terraform @('plan','-input=false','-out', $planPath))
+        $planName = if ($BootstrapAction -eq 'destroy') { 'bootstrap-destroy.tfplan' } else { 'bootstrap.tfplan' }
+        $planPath = Join-Path $bootstrapRoot $planName
+        $planArguments = @('plan','-input=false','-out', $planPath)
+        if ($BootstrapAction -eq 'destroy') { $planArguments = @('plan','-destroy','-input=false','-out', $planPath) }
+        [void](Invoke-NativeCommand terraform $planArguments)
         Write-Host "Bootstrap plan created: $planPath"
         if ($BootstrapAction -eq 'apply') {
             if ($AutoApprove -or $PSCmdlet.ShouldProcess("$($config.github_organization)/$($config.github_repository)", 'Apply exact bootstrap Terraform plan')) {
                 [void](Invoke-NativeCommand terraform @('apply','-input=false', $planPath))
                 Write-Host 'Bootstrap apply completed. No workload apply was triggered.'
+            }
+        }
+        elseif ($BootstrapAction -eq 'destroy') {
+            $target = "$($Config.github_organization)/$($Config.github_repository) and rg-$($Config.service_name)-$($Config.environment_name)-bootstrap"
+            if ($AutoApprove -or $PSCmdlet.ShouldProcess($target, 'Apply exact bootstrap destroy plan, including deletion of the generated GitHub repository and state platform')) {
+                [void](Invoke-NativeCommand terraform @('apply','-input=false', $planPath))
+                Write-Host 'Bootstrap destroy completed. The generated GitHub repository and Azure bootstrap resources were removed.'
             }
         }
     }

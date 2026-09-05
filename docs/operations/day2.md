@@ -53,5 +53,7 @@ Use the generated **02 ARO Landing Zone Continuous Delivery** workflow only afte
 
 Destroy workload resources before separately retiring bootstrap resources. Confirm whether state, logs, DNS, identity records, and platform-side peering records require retention or separate cleanup.
 
+After workload destroy succeeds, follow the [clean-slate removal procedure](cleanup.md) to review and destroy the generated repository and Azure bootstrap resources from local bootstrap state.
+
 !!! danger "External resources remain"
     Workload destroy does not destroy the existing hub or firewall/NVA. Coordinate cleanup of platform-owned peering, routing, DNS, and policy records according to ownership—even when Terraform removes the connection resources it owns.
