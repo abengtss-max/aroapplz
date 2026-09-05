@@ -36,6 +36,7 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
     version                     = var.aro_version
     pull_secret                 = local.pull_secret
     managed_resource_group_name = local.managed_resource_group_name
+    fips_enabled                = var.fips_enabled
   }
 
   network_profile {
@@ -48,15 +49,19 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   }
 
   main_profile {
-    subnet_id = azurerm_subnet.control_plane.id
-    vm_size   = var.control_plane_vm_size
+    subnet_id                  = azurerm_subnet.control_plane.id
+    vm_size                    = var.control_plane_vm_size
+    encryption_at_host_enabled = var.encryption_at_host_enabled
+    disk_encryption_set_id     = var.disk_encryption_set_id
   }
 
   worker_profile {
-    subnet_id    = azurerm_subnet.worker.id
-    vm_size      = var.worker_vm_size
-    disk_size_gb = var.worker_disk_size_gb
-    node_count   = var.worker_node_count
+    subnet_id                  = azurerm_subnet.worker.id
+    vm_size                    = var.worker_vm_size
+    disk_size_gb               = var.worker_disk_size_gb
+    node_count                 = var.worker_node_count
+    encryption_at_host_enabled = var.encryption_at_host_enabled
+    disk_encryption_set_id     = var.disk_encryption_set_id
   }
 
   api_server_profile { visibility = "Private" }

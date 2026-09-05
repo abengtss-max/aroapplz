@@ -91,6 +91,32 @@ variable "hub_vnet_id" {
   type    = string
   default = ""
 }
+variable "hub_gateway_transit_enabled" {
+  description = "Reach on-premises through the hub ExpressRoute or VPN gateway. Requires a gateway in the hub; peering fails without one."
+  type        = bool
+  default     = false
+}
+variable "egress_bgp_route_propagation_enabled" {
+  description = "Allow gateway route propagation on the ARO egress route table. Azure Landing Zones keeps this disabled so learned routes cannot bypass the firewall default route."
+  type        = bool
+  default     = false
+}
+variable "fips_enabled" {
+  description = "Use FIPS validated cryptographic modules. Changing this forces a new cluster."
+  type        = bool
+  default     = false
+}
+variable "encryption_at_host_enabled" {
+  description = "Encrypt control-plane and worker VM data at host. Requires the EncryptionAtHost feature registered on the subscription and a supporting VM size."
+  type        = bool
+  default     = false
+}
+variable "disk_encryption_set_id" {
+  description = "Optional disk encryption set for customer-managed key encryption of cluster disks."
+  type        = string
+  default     = null
+  nullable    = true
+}
 variable "next_hop_ip" {
   type    = string
   default = ""

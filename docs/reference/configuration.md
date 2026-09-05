@@ -53,6 +53,21 @@ The rendered workload Terraform also exposes these defaults:
 | `worker_vm_size` | `Standard_D4s_v3` |
 | `worker_disk_size_gb` | `128` |
 | `worker_node_count` | `3` (minimum enforced: 3) |
+| `managed_resource_group_name` | `rg-<cluster_name>-managed`; pinned so policy exemptions can be scoped before deployment |
+| `fips_enabled` | `false`; FIPS validated cryptographic modules. Forces a new cluster |
+| `encryption_at_host_enabled` | `false`; requires the `EncryptionAtHost` feature registered on the subscription and a supporting VM size |
+| `disk_encryption_set_id` | `null`; customer-managed key encryption for cluster disks |
+| `hub_gateway_transit_enabled` | `false`; `spoke` only. Reaches on-premises through the hub ExpressRoute or VPN gateway. Peering fails if the hub has no gateway |
+| `egress_bgp_route_propagation_enabled` | `false`; keeps learned routes from bypassing the firewall default route |
+| `application_gateway_backend_root_certificate` | `null`; base64 root certificate of the OpenShift ingress certificate |
+
+Cluster subnets are validated as `/27` or larger and `pod_cidr` as `/18` or larger, matching the documented ARO minimums.
+
+!!! warning "Application Gateway and the OpenShift ingress certificate"
+    OpenShift presents self-signed certificates on `*.apps` routes by default. Application Gateway v2 marks an HTTPS backend unhealthy unless the backend certificate chains to a well-known CA or its root is supplied through `application_gateway_backend_root_certificate`. Either replace the ingress certificate with one from a trusted CA or supply the root.
+
+!!! note "Cluster logging"
+    Azure Red Hat OpenShift exposes no resource-level diagnostic log categories, so no Azure Monitor diagnostic setting is created for the cluster. Forward cluster logs with the in-cluster Cluster Logging Forwarder instead. Application Gateway does receive a diagnostic setting when `ingress_mode` is `application_gateway`.
 
 These defaults are declared by the generated Terraform template rather than collected by the current PowerShell JSON wizard.
 
@@ -65,6 +80,8 @@ These defaults are declared by the generated Terraform template rather than coll
 | `next_hop_ip` | Empty | Required existing firewall/NVA private IP |
 
 For `spoke`, the subscription segment in `hub_vnet_id` must equal `connectivity_subscription_id`, and `next_hop_ip` must parse as an IP address. Validation does not prove reachability or routing correctness.
+
+In `spoke` mode the cluster is created with `outbound_type = UserDefinedRouting`, which stops ARO provisioning a public outbound IP and requires the private API server and private ingress the accelerator already configures. `standalone` keeps `Loadbalancer` egress because no route table is attached.
 
 ## Ingress
 

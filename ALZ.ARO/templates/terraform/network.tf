@@ -138,7 +138,7 @@ resource "azurerm_route_table" "egress" {
   name                          = "rt-${var.cluster_name}-egress"
   location                      = azurerm_resource_group.aro.location
   resource_group_name           = azurerm_resource_group.aro.name
-  bgp_route_propagation_enabled = false
+  bgp_route_propagation_enabled = var.egress_bgp_route_propagation_enabled
   tags                          = var.tags
 
   route {
@@ -172,6 +172,7 @@ resource "azurerm_virtual_network_peering" "aro_to_hub" {
   remote_virtual_network_id    = var.hub_vnet_id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
+  use_remote_gateways          = var.hub_gateway_transit_enabled
 }
 
 resource "azurerm_virtual_network_peering" "hub_to_aro" {
@@ -183,4 +184,5 @@ resource "azurerm_virtual_network_peering" "hub_to_aro" {
   remote_virtual_network_id    = azurerm_virtual_network.aro.id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
+  allow_gateway_transit        = var.hub_gateway_transit_enabled
 }

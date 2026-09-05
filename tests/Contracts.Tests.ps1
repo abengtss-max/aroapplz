@@ -135,6 +135,19 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'ARO control-plane and worker subnets must be /27 or larger'
         $workload | Should -Match 'pod_cidr must be /18 or larger'
     }
+    It 'supports hub gateway transit and landing-zone route control in spoke mode' {
+        $workload | Should -Match 'use_remote_gateways\s+=\s+var\.hub_gateway_transit_enabled'
+        $workload | Should -Match 'allow_gateway_transit\s+=\s+var\.hub_gateway_transit_enabled'
+        $workload | Should -Match 'bgp_route_propagation_enabled\s+=\s+var\.egress_bgp_route_propagation_enabled'
+    }
+    It 'exposes the ARO data-protection options as opt-in' {
+        $workload | Should -Match 'fips_enabled\s+=\s+var\.fips_enabled'
+        $workload | Should -Match 'encryption_at_host_enabled\s+=\s+var\.encryption_at_host_enabled'
+        $workload | Should -Match 'disk_encryption_set_id\s+=\s+var\.disk_encryption_set_id'
+    }
+    It 'does not attempt ARO resource diagnostic settings, which the platform does not expose' {
+        $workload | Should -Not -Match 'azurerm_monitor_diagnostic_setting" "aro"'
+    }
     It 'warns about landing-zone policy assignments that block ARO before apply' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match 'function Test-AROPolicyCompatibility'
