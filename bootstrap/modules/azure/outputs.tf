@@ -1,6 +1,6 @@
 output "state_resource_group_name" { value = azurerm_resource_group.state.name }
-output "state_storage_account_name" { value = azurerm_storage_account.state.name }
-output "state_container_name" { value = azurerm_storage_container.state.name }
+output "state_storage_account_name" { value = azapi_resource.state.name }
+output "state_container_name" { value = azapi_resource.state_container.name }
 output "client_ids" {
   value = { for key, identity in azurerm_user_assigned_identity.pipeline : key => identity.client_id }
 }

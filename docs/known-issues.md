@@ -26,9 +26,13 @@ GitHub-to-Azure authentication uses OIDC. ARO uses a cluster user-assigned manag
 
 The workload state storage endpoint is reachable from GitHub-hosted runners. Anonymous and shared-key access are disabled and Entra authorization is used, but organizations requiring private network access need self-hosted runner connectivity and a modified/tested bootstrap.
 
+## Private-repository reviewers depend on the GitHub plan
+
+GitHub required reviewers for private repository environments require GitHub Enterprise. Preflight enables the reviewer rule only when GitHub reports an Enterprise owner plan. Other plans retain the manual immutable-SHA and exact-plan controls, but do not provide independent environment approval. Use an Enterprise organization when that approval is required.
+
 ## Workload apply is separate
 
-Bootstrap apply creates the delivery platform and generated repository only. It does not automatically plan or apply the ARO workload. The first workload deployment is a manual GitHub workflow operation using an immutable commit SHA and protected approval.
+Bootstrap apply creates the delivery platform and generated repository only. It does not automatically plan or apply the ARO workload. The first workload deployment is a manual GitHub workflow operation using an immutable commit SHA and, when supported by the GitHub owner plan, protected approval.
 
 ## Local bootstrap state
 

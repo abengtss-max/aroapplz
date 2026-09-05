@@ -17,6 +17,10 @@ variable "apply_approvers" {
     error_message = "At least one GitHub apply approver is required."
   }
 }
+variable "apply_environment_reviewers_enabled" {
+  type    = bool
+  default = false
+}
 variable "repository_files" { type = map(string) }
 variable "tags" {
   type    = map(string)

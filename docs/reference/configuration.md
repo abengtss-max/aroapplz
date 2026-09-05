@@ -20,7 +20,9 @@ Copy one to the ignored `config/local.json` before editing.
 | `environment_name` | Yes | Environment component used in generated names |
 | `github_organization` | Yes | GitHub organization or owner for the generated repository |
 | `github_repository` | Yes | Name of the new private workload repository |
-| `apply_approvers` | Yes | Non-empty array of GitHub usernames for environment protection |
+| `apply_approvers` | Yes | Non-empty array of GitHub usernames used for private-repository environment protection when the owner has GitHub Enterprise |
+
+Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner plan and writes it only to generated bootstrap input. It is not a user-supplied configuration field. Non-Enterprise owners receive a warning because GitHub does not support the reviewer rule for their generated private repository.
 
 Generated workload names include `rg-<service>-<environment>-aro` and `aro-<service>-<environment>`.
 

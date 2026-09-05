@@ -1,6 +1,7 @@
 variable "organization" { type = string }
 variable "repository" { type = string }
 variable "apply_approvers" { type = list(string) }
+variable "apply_environment_reviewers_enabled" { type = bool }
 variable "repository_files" { type = map(string) }
 variable "tenant_id" { type = string }
 variable "workload_subscription_id" { type = string }

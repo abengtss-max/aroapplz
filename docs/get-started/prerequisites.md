@@ -46,7 +46,7 @@ ARO versions vary by region. The module calls `az aro get-versions --location` a
 - For an organization, authorize the PAT for SAML SSO when required and confirm that organization PAT policy permits it. Do not store the PAT in configuration or generated repository secrets.
 - The requested target repository name must be available to the supplied owner or organization.
 - Supply at least one GitHub username in `apply_approvers`.
-- Confirm the organization permits private-repository creation, GitHub environments, environment protection, Actions, and OIDC.
+- Confirm the owner permits private-repository creation, GitHub environments, Actions, and OIDC. Required reviewers on private repositories require GitHub Enterprise; other plans retain the manual immutable-SHA and exact-plan safeguards but cannot add the reviewer protection rule.
 - Plan how to add the runtime secrets to both generated `plan` and `apply` environments after bootstrap.
 
 ## Extra requirements for `spoke`

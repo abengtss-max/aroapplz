@@ -24,6 +24,18 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Match 'azurerm_federated_identity_credential'
         $bootstrap | Should -Not -Match 'azuread_application_password|azuread_service_principal_password'
     }
+    It 'creates state through the ARM plane with shared keys disabled' {
+        $bootstrap | Should -Match 'resource "azapi_resource" "state"'
+        $bootstrap | Should -Match 'allowSharedKeyAccess\s+=\s+false'
+        $bootstrap | Should -Match 'resource "azapi_resource" "state_container"'
+        $bootstrap | Should -Not -Match 'resource "azurerm_storage_account" "state"'
+    }
+    It 'only configures private repository reviewers when the owner plan supports them' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $githubModule = Get-Content (Join-Path $root 'bootstrap\modules\github\main.tf') -Raw
+        $module | Should -Match '\[string\]\$ownerPlan -eq ''enterprise'''
+        $githubModule | Should -Match 'var\.apply_environment_reviewers_enabled \? \[1\] : \[\]'
+    }
     It 'maps GH_TOKEN to the Terraform provider token without persisting it' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'

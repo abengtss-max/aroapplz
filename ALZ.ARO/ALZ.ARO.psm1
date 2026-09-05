@@ -126,6 +126,25 @@ function Invoke-AROPreflight {
         throw "A personal repository can only be bootstrapped under the authenticated GitHub user '$($githubUser.login)', not '$($githubOwner.login)'."
     }
 
+    # Required reviewers on private repositories require GitHub Enterprise.
+    # The generic /users endpoint does not expose organization billing plans,
+    # so query the organization endpoint when applicable and fail closed when
+    # GitHub does not report Enterprise capability.
+    $ownerPlan = if ($githubOwner.type -eq 'Organization') {
+        $organizationResponse = Invoke-WebRequest -Uri "https://api.github.com/orgs/$owner" -Headers $githubHeaders -SkipHttpErrorCheck
+        if ([int]$organizationResponse.StatusCode -eq 200) {
+            $organization = $organizationResponse.Content | ConvertFrom-Json
+            if ($organization.PSObject.Properties['plan']) { $organization.plan.name } else { $null }
+        }
+        else { $null }
+    }
+    elseif ($githubUser.PSObject.Properties['plan']) { $githubUser.plan.name }
+    else { $null }
+    $Config.apply_environment_reviewers_enabled = [string]$ownerPlan -eq 'enterprise'
+    if (-not $Config.apply_environment_reviewers_enabled) {
+        Write-Warning 'The GitHub owner plan does not support required reviewers for a private repository. The apply environment will be created without a reviewer rule; manual SHA confirmation and exact-plan apply safeguards remain enabled.'
+    }
+
     # Classic PATs report scopes in this header. Fine-grained PATs do not, so
     # their repository permissions remain governed by GitHub API responses.
     $classicScopes = @([string]$githubUserResponse.Headers['X-OAuth-Scopes'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -204,6 +223,7 @@ function New-BootstrapInput {
         github_organization = $Config.github_organization
         github_repository = $Config.github_repository
         apply_approvers = @($Config.apply_approvers)
+        apply_environment_reviewers_enabled = [bool]$Config.apply_environment_reviewers_enabled
         repository_files = $files
     }
     $input | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
