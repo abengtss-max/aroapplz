@@ -63,7 +63,26 @@ Before `spoke` apply, confirm with network owners:
 - The next-hop IP belongs to a functioning virtual appliance path.
 - DNS resolution works for Azure, ARO, and organizational dependencies.
 - Firewall policy permits required ARO egress and operational access.
-- Subscription and cross-subscription permissions allow reverse peering.
+
+### Grant the pipeline identities access to the hub
+
+Bootstrap grants the plan and apply identities roles on the **workload** subscription only. It deliberately grants nothing in the connectivity subscription, because a workload pipeline should not hold standing write access to platform networking.
+
+`spoke` mode creates the reverse peering inside the hub through the `azurerm.connectivity` provider, so without an explicit grant the apply fails with `AuthorizationFailed` on `Microsoft.Network/virtualNetworks/virtualNetworkPeerings/write`.
+
+A connectivity owner grants the minimum, scoped to the hub VNet rather than the subscription:
+
+```bash
+APPLY_ID=$(az identity show -g rg-<service>-<env>-bootstrap -n id-<service>-<env>-apply --query principalId -o tsv)
+PLAN_ID=$(az identity show -g rg-<service>-<env>-bootstrap -n id-<service>-<env>-plan --query principalId -o tsv)
+
+az role assignment create --assignee-object-id "$APPLY_ID" --assignee-principal-type ServicePrincipal \
+  --role "Network Contributor" --scope "<HUB_VNET_ID>"
+az role assignment create --assignee-object-id "$PLAN_ID" --assignee-principal-type ServicePrincipal \
+  --role Reader --scope "<HUB_VNET_ID>"
+```
+
+Network Contributor is used because peering needs `virtualNetworkPeerings/write` on the hub side and `virtualNetworks/peer/action` on the remote side; it is the least-privilege built-in role carrying both. Plan needs only Reader to refresh the peering it does not own.
 
 ## Ingress and edge routing
 
