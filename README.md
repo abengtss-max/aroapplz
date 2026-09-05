@@ -2,30 +2,45 @@
 
 A concise PowerShell and Terraform accelerator for a private Azure Red Hat OpenShift (ARO) application landing zone. It bootstraps Azure state, Microsoft Entra workload identities, and a GitHub delivery repository; the generated repository then deploys the workload through reviewed plans.
 
+> **Documentation:** [abengtss-max.github.io/aroapplz](https://abengtss-max.github.io/aroapplz/) — start with the [quickstart](https://abengtss-max.github.io/aroapplz/get-started/quickstart/) or review [how it works](https://abengtss-max.github.io/aroapplz/concepts/how-it-works/).
+
 ## Implemented scope
 
 - Exactly two modes: `standalone` and `spoke`.
 - Both modes create and own a new resource group, ARO VNet, control-plane subnet, worker subnet, and ARO cluster.
 - `spoke` creates bidirectional peerings to an existing hub and a default UDR to an existing firewall/NVA. It never creates the hub, firewall, or NVA.
 - Exact ARO version discovery/validation through `az aro get-versions --location`; the pin is persisted to JSON before bootstrap planning.
-- Bootstrap creates hardened Azure Storage state, Entra applications/service principals for plan and apply, GitHub-environment OIDC credentials, RBAC, a private repository, environments, variables, files, and workflows.
+- Bootstrap creates hardened Azure Storage state, user-assigned managed identities for plan and apply, GitHub-environment OIDC credentials, RBAC, a private repository, environments, variables, files, and workflows.
 - Workload CI performs formatting, validation, Checkov, and planning. CD plans a selected immutable SHA and applies the exact artifact after `apply` environment approval. Destroy is manual-only and guarded by confirmation, default-branch, and SHA checks.
 
 No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` defaults to bootstrap **plan**. Bootstrap apply creates the delivery platform but does not automatically apply the ARO workload.
 
 ## Ingress status
 
-`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door is currently a follow-on integration contract only. Application Gateway is explicitly **preview**, disabled by default, and represented by a contract resource; it does not provision a gateway. The ARO API and ingress profiles are private.
+`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door is a follow-on integration contract. Application Gateway provisions a dedicated subnet, public IP, WAF_v2 gateway, private ARO ingress backend, HTTPS probe, and Log Analytics diagnostics. The ARO API and ingress profiles remain private.
 
 ## Start
 
-See [Quickstart](docs/quickstart.md), [configuration](docs/configuration.md), and [architecture](docs/architecture.md). Import [ALZ.ARO/ALZ.ARO.psd1](ALZ.ARO/ALZ.ARO.psd1), prepare an input based on [config/standalone.json](config/standalone.json) or [config/spoke.json](config/spoke.json), then invoke `Deploy-AROLandingZone`.
+See the documentation [quickstart](https://abengtss-max.github.io/aroapplz/get-started/quickstart/), [configuration reference](https://abengtss-max.github.io/aroapplz/reference/configuration/), and [architecture](https://abengtss-max.github.io/aroapplz/concepts/how-it-works/). Import [ALZ.ARO/ALZ.ARO.psd1](ALZ.ARO/ALZ.ARO.psd1), prepare an input based on [config/standalone.json](config/standalone.json) or [config/spoke.json](config/spoke.json), then invoke `Deploy-AROLandingZone`.
+
+GitHub bootstrap requires a runtime-only classic PAT with `repo` and `workflow`; add `read:org` for an organization-owned target. Bootstrap teardown additionally requires `delete_repo` because it removes the generated repository. The PAT is not used by workload workflows. See the [clean-slate removal guide](https://abengtss-max.github.io/aroapplz/operations/cleanup/) for the required workload-first sequence.
+
+## Documentation development
+
+Install the pinned documentation dependencies and run the same strict build used by GitHub Pages:
+
+```powershell
+python -m pip install -r requirements-docs.txt
+python -m mkdocs build --strict
+```
+
+For an interactive local preview, run `python -m mkdocs serve` and stop it when finished. See [CONTRIBUTING.md](CONTRIBUTING.md) for repository validation and contribution boundaries.
 
 ## Security boundaries
 
-The bootstrap creates no Azure client secret for GitHub. GitHub uses client IDs plus OIDC. The operator supplies GitHub provider authentication at runtime. ARO's own service-principal secret and optional Red Hat pull secret are separate runtime inputs in protected GitHub environments and are not placed in generated configuration.
+The bootstrap creates no Azure client secret for GitHub or ARO. GitHub uses managed-identity client IDs plus OIDC. ARO uses one cluster identity and eight platform workload identities. The operator supplies GitHub provider authentication at runtime. The optional Red Hat pull secret and the PFX values required when Application Gateway is enabled are protected runtime inputs and are not placed in generated configuration.
 
-The apply principal currently receives Azure `Contributor` at workload-subscription scope because the workload resource group does not exist during bootstrap. Tighten this using a pre-created scope/custom role where organizational policy permits. The plan principal receives `Reader`; both receive state-container data access.
+The apply identity receives Azure `Contributor` and `Role Based Access Control Administrator` at workload-subscription scope because the workload resource group and required least-privilege ARO role assignments do not exist during bootstrap. Tighten these using a pre-created scope/custom role where organizational policy permits. The plan identity receives `Reader`; both receive state-container data access.
 
 ## Attribution
 

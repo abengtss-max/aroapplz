@@ -10,12 +10,17 @@ variable "service_name" { type = string }
 variable "environment_name" { type = string }
 variable "github_organization" { type = string }
 variable "github_repository" { type = string }
+variable "github_owner_id" { type = string }
 variable "apply_approvers" {
   type = list(string)
   validation {
     condition     = length(var.apply_approvers) > 0
     error_message = "At least one GitHub apply approver is required."
   }
+}
+variable "apply_environment_reviewers_enabled" {
+  type    = bool
+  default = false
 }
 variable "repository_files" { type = map(string) }
 variable "tags" {

@@ -1,0 +1,86 @@
+name: ARO CI Template
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      runner_label:
+        required: false
+        type: string
+        default: ubuntu-latest
+      terraform_version:
+        required: false
+        type: string
+        default: '1.9.8'
+      working_directory:
+        required: false
+        type: string
+        default: terraform
+
+jobs:
+  plan:
+    name: Validate and plan ARO
+    environment: ${{ inputs.environment }}
+    runs-on: ${{ inputs.runner_label }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
+      TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
+      TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Format
+        run: terraform fmt -check -recursive
+      - name: Initialize
+        run: terraform init -input=false
+      - name: Validate
+        run: terraform validate -no-color
+      - name: Plan
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-plan-${{ github.event.pull_request.head.sha }}
+          path: ${{ inputs.working_directory }}/tfplan
+          retention-days: 5
+
+  security:
+    name: Security scan (Checkov)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: ${{ inputs.working_directory }}
+          config_file: .checkov.yaml
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          soft_fail: false
+      - name: Upload Checkov SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+          category: checkov

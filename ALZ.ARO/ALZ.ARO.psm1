@@ -36,6 +36,7 @@ function New-AROConfigWizard {
         github_organization = Read-Host 'GitHub organization or owner'
         github_repository = Read-Host 'New workload repository name'
         apply_approvers = @($approverInput -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        runner_label = Read-Host 'Existing GitHub runner label (default ubuntu-latest)'
         aro_version = Read-Host 'ARO version (leave empty to resolve newest available)'
         aro_domain = Read-Host 'Unique ARO domain prefix'
         aro_vnet_cidr = Read-Host 'New ARO VNet CIDR'
@@ -45,7 +46,10 @@ function New-AROConfigWizard {
         next_hop_ip = if ($mode -eq 'spoke') { Read-Host 'Existing firewall/NVA private IP' } else { '' }
         ingress_mode = Read-Host 'Ingress mode (none/front_door/application_gateway; default none)'
     }
+    if ([string]::IsNullOrWhiteSpace($config.runner_label)) { $config.runner_label = 'ubuntu-latest' }
     if ([string]::IsNullOrWhiteSpace($config.ingress_mode)) { $config.ingress_mode = 'none' }
+    $config.application_gateway_subnet_cidr = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'Dedicated Application Gateway subnet CIDR' } else { '' }
+    $config.application_gateway_backend_host_name = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'OpenShift application hostname for the gateway health probe' } else { '' }
     $parent = Split-Path -Parent $OutputPath
     if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
@@ -60,7 +64,15 @@ function Assert-AROConfig {
         if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "Missing required configuration value '$name'." }
     }
     if ($Config.deployment_mode -notin @('standalone','spoke')) { throw "deployment_mode must be exactly 'standalone' or 'spoke'." }
+    if (-not $Config.ContainsKey('runner_label') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_label)) { $Config.runner_label = 'ubuntu-latest' }
+    if ($Config.runner_label -notin @('ubuntu-latest','self-hosted')) { throw "runner_label must be exactly 'ubuntu-latest' or 'self-hosted'." }
+    if ($Config.github_organization -notmatch '^[A-Za-z0-9_.-]+$' -or $Config.github_repository -notmatch '^[A-Za-z0-9_.-]+$') { throw 'GitHub owner and repository names contain unsupported characters.' }
     if ($Config.ingress_mode -notin @('none','front_door','application_gateway')) { throw "ingress_mode must be exactly 'none', 'front_door', or 'application_gateway'." }
+    if ($Config.ingress_mode -eq 'application_gateway') {
+        foreach ($name in @('application_gateway_subnet_cidr','application_gateway_backend_host_name')) {
+            if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "application_gateway mode requires '$name'." }
+        }
+    }
     if (-not $Config.ContainsKey('apply_approvers') -or @($Config.apply_approvers).Count -eq 0) { throw 'At least one GitHub apply approver is required to protect apply and destroy.' }
     if ($Config.deployment_mode -eq 'spoke') {
         foreach ($name in @('connectivity_subscription_id','hub_vnet_id','next_hop_ip')) {
@@ -75,15 +87,84 @@ function Assert-AROConfig {
 }
 
 function Invoke-AROPreflight {
-    param([Parameter(Mandatory)][hashtable]$Config)
+    param(
+        [Parameter(Mandatory)][hashtable]$Config,
+        [Parameter(Mandatory)][ValidateSet('plan','apply','destroy')][string]$BootstrapAction
+    )
 
     foreach ($tool in @('az','terraform')) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required command '$tool' is not available on PATH." }
     }
     $account = Invoke-NativeCommand az @('account','show','--output','json') | ConvertFrom-Json
     if (-not $account.id) { throw 'Azure CLI is not authenticated. Run az login.' }
-    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN) -and [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
-        throw 'Set GITHUB_TOKEN or GH_TOKEN for the Terraform GitHub provider. The value is never written or printed.'
+    if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
+            # The Terraform GitHub provider reads GITHUB_TOKEN. Accept GH_TOKEN
+            # without persisting or printing its value.
+            $env:GITHUB_TOKEN = $env:GH_TOKEN
+        }
+        elseif (Get-Command gh -ErrorAction SilentlyContinue) {
+            # Reuse an authenticated GitHub CLI session without exposing the
+            # credential in command history, generated input, or Terraform.
+            $env:GITHUB_TOKEN = Invoke-NativeCommand gh @('auth','token')
+        }
+        else {
+            throw 'Set GITHUB_TOKEN or GH_TOKEN, or authenticate GitHub CLI with gh auth login. The credential is never written or printed.'
+        }
+    }
+
+    $githubHeaders = @{
+        Accept                 = 'application/vnd.github+json'
+        Authorization          = "Bearer $($env:GITHUB_TOKEN)"
+        'X-GitHub-Api-Version' = '2022-11-28'
+        'User-Agent'           = 'ALZ.ARO-bootstrap'
+    }
+    $githubUserResponse = Invoke-WebRequest -Uri 'https://api.github.com/user' -Headers $githubHeaders -SkipHttpErrorCheck
+    if ([int]$githubUserResponse.StatusCode -ne 200) {
+        throw 'GitHub rejected GITHUB_TOKEN. Replace the stale or invalid value (for example: $env:GITHUB_TOKEN = gh auth token) and retry.'
+    }
+    $githubUser = $githubUserResponse.Content | ConvertFrom-Json
+    $owner = [uri]::EscapeDataString([string]$Config.github_organization)
+    $githubOwnerResponse = Invoke-WebRequest -Uri "https://api.github.com/users/$owner" -Headers $githubHeaders -SkipHttpErrorCheck
+    if ([int]$githubOwnerResponse.StatusCode -ne 200) {
+        throw "GitHub owner '$($Config.github_organization)' is unavailable to the supplied credential."
+    }
+    $githubOwner = $githubOwnerResponse.Content | ConvertFrom-Json
+    $Config.github_owner_id = [string]$githubOwner.id
+    if ($githubOwner.type -eq 'User' -and $githubUser.login -ne $githubOwner.login) {
+        throw "A personal repository can only be bootstrapped under the authenticated GitHub user '$($githubUser.login)', not '$($githubOwner.login)'."
+    }
+
+    # Required reviewers on private repositories require GitHub Enterprise.
+    # The generic /users endpoint does not expose organization billing plans,
+    # so query the organization endpoint when applicable and fail closed when
+    # GitHub does not report Enterprise capability.
+    $ownerPlan = if ($githubOwner.type -eq 'Organization') {
+        $organizationResponse = Invoke-WebRequest -Uri "https://api.github.com/orgs/$owner" -Headers $githubHeaders -SkipHttpErrorCheck
+        if ([int]$organizationResponse.StatusCode -eq 200) {
+            $organization = $organizationResponse.Content | ConvertFrom-Json
+            if ($organization.PSObject.Properties['plan']) { $organization.plan.name } else { $null }
+        }
+        else { $null }
+    }
+    elseif ($githubUser.PSObject.Properties['plan']) { $githubUser.plan.name }
+    else { $null }
+    $Config.apply_environment_reviewers_enabled = [string]$ownerPlan -eq 'enterprise'
+    if (-not $Config.apply_environment_reviewers_enabled) {
+        Write-Warning 'The GitHub owner plan does not support required reviewers for a private repository. The apply environment will be created without a reviewer rule; manual SHA confirmation and exact-plan apply safeguards remain enabled.'
+    }
+
+    # Classic PATs report scopes in this header. Fine-grained PATs do not, so
+    # their repository permissions remain governed by GitHub API responses.
+    $classicScopes = @([string]$githubUserResponse.Headers['X-OAuth-Scopes'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($classicScopes.Count -gt 0) {
+        $requiredScopes = @('repo', 'workflow')
+        if ($githubOwner.type -eq 'Organization') { $requiredScopes += 'read:org' }
+        if ($BootstrapAction -eq 'destroy') { $requiredScopes += 'delete_repo' }
+        $missingScopes = @($requiredScopes | Where-Object { $_ -notin $classicScopes })
+        if ($missingScopes.Count -gt 0) {
+            throw "The classic GitHub PAT is missing required scope(s): $($missingScopes -join ', ')."
+        }
     }
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.bootstrap_subscription_id,'--output','none'))
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.workload_subscription_id,'--output','none'))
@@ -114,9 +195,17 @@ function New-BootstrapInput {
 
     $files = @{}
     $templateRoot = Join-Path $RepositoryRoot 'ALZ.ARO\templates'
-    Get-ChildItem -LiteralPath $templateRoot -File -Recurse | ForEach-Object {
+    Get-ChildItem -LiteralPath $templateRoot -File -Recurse | Where-Object {
+        $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
+        $relative -notmatch '(^|/)\.terraform/' -and $relative -notmatch '\.(tfplan|log)$'
+    } | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
         $files[$relative] = Get-Content -LiteralPath $_.FullName -Raw
+    }
+    if ($Config.runner_label -eq 'self-hosted') {
+        foreach ($workflow in @('.github/workflows/ci.yml', '.github/workflows/cd.yml')) {
+            $files[$workflow] = $files[$workflow] -replace 'runner_label: ubuntu-latest', 'runner_label: self-hosted'
+        }
     }
     $workload = [ordered]@{
         deployment_mode = $Config.deployment_mode
@@ -134,6 +223,8 @@ function New-BootstrapInput {
         hub_vnet_id = $Config.hub_vnet_id
         next_hop_ip = $Config.next_hop_ip
         ingress_mode = $Config.ingress_mode
+        application_gateway_subnet_cidr = if ($Config.ContainsKey('application_gateway_subnet_cidr')) { $Config.application_gateway_subnet_cidr } else { '' }
+        application_gateway_backend_host_name = if ($Config.ContainsKey('application_gateway_backend_host_name')) { $Config.application_gateway_backend_host_name } else { '' }
     }
     $files['terraform/aro.auto.tfvars.json'] = $workload | ConvertTo-Json -Depth 10
     $input = [ordered]@{
@@ -146,7 +237,9 @@ function New-BootstrapInput {
         environment_name = $Config.environment_name
         github_organization = $Config.github_organization
         github_repository = $Config.github_repository
+        github_owner_id = [string]$Config.github_owner_id
         apply_approvers = @($Config.apply_approvers)
+        apply_environment_reviewers_enabled = [bool]$Config.apply_environment_reviewers_enabled
         repository_files = $files
     }
     $input | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
@@ -157,25 +250,40 @@ function Deploy-AROLandingZone {
     .SYNOPSIS
     Generates configuration and plans or applies the ARO landing-zone bootstrap.
     .DESCRIPTION
-    With InputConfigPath, runs noninteractively. Without it, runs a JSON configuration wizard. The selected ARO version is validated and persisted exactly before Terraform is invoked. Secrets are accepted only by Terraform through environment variables and are never printed.
+    With InputConfigPath, runs noninteractively. Without it, runs a JSON configuration wizard. Plan is the default; apply creates bootstrap resources, and destroy removes the generated repository and Azure bootstrap resources through an exact reviewed destroy plan. The selected ARO version is validated and persisted exactly before Terraform is invoked. Secrets are accepted only through environment variables and are never printed.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
     param(
         [string]$InputConfigPath,
         [string]$OutputConfigPath,
-        [ValidateSet('plan','apply')][string]$BootstrapAction = 'plan',
+        [ValidateSet('plan','apply','destroy')][string]$BootstrapAction = 'plan',
         [switch]$GenerateConfig,
         [switch]$AutoApprove
     )
 
     $repositoryRoot = Split-Path -Parent $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($OutputConfigPath)) { $OutputConfigPath = Join-Path $repositoryRoot 'config\local.json' }
-    $configPath = if ($InputConfigPath) { (Resolve-Path -LiteralPath $InputConfigPath).Path } else { $OutputConfigPath }
-    $config = if ($InputConfigPath) { Read-AROConfig $configPath } else { New-AROConfigWizard $configPath }
+    if ($InputConfigPath) {
+        $configPath = (Resolve-Path -LiteralPath $InputConfigPath).Path
+        $config = Read-AROConfig $configPath
+    }
+    elseif ($GenerateConfig) {
+        $configPath = $OutputConfigPath
+        $config = New-AROConfigWizard $configPath
+    }
+    elseif (Test-Path -LiteralPath $OutputConfigPath -PathType Leaf) {
+        $configPath = (Resolve-Path -LiteralPath $OutputConfigPath).Path
+        $config = Read-AROConfig $configPath
+        Write-Host "Using existing configuration: $configPath"
+    }
+    else {
+        $configPath = $OutputConfigPath
+        $config = New-AROConfigWizard $configPath
+    }
     Assert-AROConfig $config
     if ($GenerateConfig) { Write-Host "Configuration written to $configPath"; return }
 
-    Invoke-AROPreflight $config
+    Invoke-AROPreflight -Config $config -BootstrapAction $BootstrapAction
     $config.aro_version = Resolve-AROVersion $config
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8NoBOM
     Write-Host "Validated and pinned ARO version $($config.aro_version) in $configPath"
@@ -187,13 +295,23 @@ function Deploy-AROLandingZone {
     try {
         [void](Invoke-NativeCommand terraform @('init','-input=false'))
         [void](Invoke-NativeCommand terraform @('validate','-no-color'))
-        $planPath = Join-Path $bootstrapRoot 'bootstrap.tfplan'
-        [void](Invoke-NativeCommand terraform @('plan','-input=false','-out', $planPath))
+        $planName = if ($BootstrapAction -eq 'destroy') { 'bootstrap-destroy.tfplan' } else { 'bootstrap.tfplan' }
+        $planPath = Join-Path $bootstrapRoot $planName
+        $planArguments = @('plan','-input=false',"-out=$planPath")
+        if ($BootstrapAction -eq 'destroy') { $planArguments = @('plan','-destroy','-input=false',"-out=$planPath") }
+        [void](Invoke-NativeCommand terraform $planArguments)
         Write-Host "Bootstrap plan created: $planPath"
         if ($BootstrapAction -eq 'apply') {
             if ($AutoApprove -or $PSCmdlet.ShouldProcess("$($config.github_organization)/$($config.github_repository)", 'Apply exact bootstrap Terraform plan')) {
                 [void](Invoke-NativeCommand terraform @('apply','-input=false', $planPath))
                 Write-Host 'Bootstrap apply completed. No workload apply was triggered.'
+            }
+        }
+        elseif ($BootstrapAction -eq 'destroy') {
+            $target = "$($Config.github_organization)/$($Config.github_repository) and rg-$($Config.service_name)-$($Config.environment_name)-bootstrap"
+            if ($AutoApprove -or $PSCmdlet.ShouldProcess($target, 'Apply exact bootstrap destroy plan, including deletion of the generated GitHub repository and state platform')) {
+                [void](Invoke-NativeCommand terraform @('apply','-input=false', $planPath))
+                Write-Host 'Bootstrap destroy completed. The generated GitHub repository and Azure bootstrap resources were removed.'
             }
         }
     }

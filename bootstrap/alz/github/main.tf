@@ -30,20 +30,43 @@ locals {
         }
       }
     EOT
+    "terraform/aro-resource-provider.auto.tfvars.json" = jsonencode({
+      aro_resource_provider_object_id = module.azure.aro_resource_provider_object_id
+    })
   }
 }
 
 module "github" {
-  source                       = "../../modules/github"
-  organization                 = var.github_organization
-  repository                   = var.github_repository
-  apply_approvers              = var.apply_approvers
-  repository_files             = merge(var.repository_files, local.generated_files)
-  tenant_id                    = var.tenant_id
-  workload_subscription_id     = var.workload_subscription_id
-  connectivity_subscription_id = var.connectivity_subscription_id
-  client_ids                   = module.azure.client_ids
-  backend_resource_group_name  = module.azure.state_resource_group_name
-  backend_storage_account_name = module.azure.state_storage_account_name
-  backend_container_name       = module.azure.state_container_name
+  source                              = "../../modules/github"
+  organization                        = var.github_organization
+  repository                          = var.github_repository
+  apply_approvers                     = var.apply_approvers
+  apply_environment_reviewers_enabled = var.apply_environment_reviewers_enabled
+  repository_files                    = merge(var.repository_files, local.generated_files)
+  tenant_id                           = var.tenant_id
+  workload_subscription_id            = var.workload_subscription_id
+  connectivity_subscription_id        = var.connectivity_subscription_id
+  client_ids                          = module.azure.client_ids
+  backend_resource_group_name         = module.azure.state_resource_group_name
+  backend_storage_account_name        = module.azure.state_storage_account_name
+  backend_container_name              = module.azure.state_container_name
+}
+
+resource "azurerm_federated_identity_credential" "github" {
+  for_each                  = toset(["plan", "apply"])
+  name                      = "github-${each.key}"
+  user_assigned_identity_id = module.azure.identity_ids[each.key]
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${var.github_organization}@${var.github_owner_id}/${var.github_repository}@${module.github.repository_id}:environment:${each.key}"
+}
+
+moved {
+  from = module.azure.azurerm_federated_identity_credential.github["plan"]
+  to   = azurerm_federated_identity_credential.github["plan"]
+}
+
+moved {
+  from = module.azure.azurerm_federated_identity_credential.github["apply"]
+  to   = azurerm_federated_identity_credential.github["apply"]
 }

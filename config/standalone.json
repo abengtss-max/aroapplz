@@ -10,6 +10,7 @@
   "github_organization": "your-github-organization",
   "github_repository": "aroapp-dev",
   "apply_approvers": ["github-user"],
+  "runner_label": "ubuntu-latest",
   "aro_version": "",
   "aro_domain": "aroapp-dev",
   "aro_vnet_cidr": "10.40.0.0/20",
@@ -17,5 +18,7 @@
   "worker_subnet_cidr": "10.40.4.0/22",
   "hub_vnet_id": "",
   "next_hop_ip": "",
-  "ingress_mode": "none"
+  "ingress_mode": "none",
+  "application_gateway_subnet_cidr": "",
+  "application_gateway_backend_host_name": ""
 }

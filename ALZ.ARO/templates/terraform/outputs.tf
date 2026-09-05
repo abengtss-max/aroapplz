@@ -6,6 +6,12 @@ output "worker_subnet_id" { value = azurerm_subnet.worker.id }
 output "console_url" { value = azurerm_redhat_openshift_cluster.aro.console_url }
 output "ingress_status" {
   value = var.ingress_mode == "none" ? "none" : (
-    var.ingress_mode == "front_door" ? "follow-on integration required" : "application_gateway preview; no gateway provisioned"
+    var.ingress_mode == "front_door" ? "follow-on integration required" : "application_gateway provisioned"
   )
+}
+output "application_gateway_public_ip" {
+  value = var.ingress_mode == "application_gateway" ? azurerm_public_ip.application_gateway[0].ip_address : null
+}
+output "application_gateway_fqdn" {
+  value = var.ingress_mode == "application_gateway" ? azurerm_public_ip.application_gateway[0].fqdn : null
 }

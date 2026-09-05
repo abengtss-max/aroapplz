@@ -22,7 +22,7 @@ resource "github_branch_default" "workload" {
 }
 
 data "github_user" "approver" {
-  for_each = toset(var.apply_approvers)
+  for_each = var.apply_environment_reviewers_enabled ? toset(var.apply_approvers) : toset([])
   username = each.value
 }
 
@@ -34,10 +34,10 @@ resource "github_repository_environment" "plan" {
 resource "github_repository_environment" "apply" {
   repository          = github_repository.workload.name
   environment         = "apply"
-  prevent_self_review = true
+  prevent_self_review = var.apply_environment_reviewers_enabled
 
   dynamic "reviewers" {
-    for_each = length(var.apply_approvers) > 0 ? [1] : []
+    for_each = var.apply_environment_reviewers_enabled ? [1] : []
     content {
       users = [for user in data.github_user.approver : user.id]
     }
@@ -56,18 +56,18 @@ resource "github_repository_file" "managed" {
 
 locals {
   repository_variables = {
-    AZURE_TENANT_ID                   = var.tenant_id
-    AZURE_SUBSCRIPTION_ID             = var.workload_subscription_id
-    CONNECTIVITY_SUBSCRIPTION_ID      = var.connectivity_subscription_id
-    TF_BACKEND_RESOURCE_GROUP         = var.backend_resource_group_name
-    TF_BACKEND_STORAGE_ACCOUNT        = var.backend_storage_account_name
-    TF_BACKEND_CONTAINER              = var.backend_container_name
-    TF_BACKEND_KEY                    = "aro.tfstate"
+    AZURE_TENANT_ID              = var.tenant_id
+    AZURE_SUBSCRIPTION_ID        = var.workload_subscription_id
+    CONNECTIVITY_SUBSCRIPTION_ID = var.connectivity_subscription_id
+    TF_BACKEND_RESOURCE_GROUP    = var.backend_resource_group_name
+    TF_BACKEND_STORAGE_ACCOUNT   = var.backend_storage_account_name
+    TF_BACKEND_CONTAINER         = var.backend_container_name
+    TF_BACKEND_KEY               = "aro.tfstate"
   }
 }
 
 resource "github_actions_variable" "repository" {
-  for_each      = local.repository_variables
+  for_each      = { for name, value in local.repository_variables : name => value if value != "" }
   repository    = github_repository.workload.name
   variable_name = each.key
   value         = each.value
