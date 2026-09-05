@@ -80,6 +80,7 @@ Confirm that the plan targets only the intended:
 - generated GitHub workload repository;
 - `plan` and `apply` environments and repository configuration;
 - pipeline managed identities, federated credentials, and role assignments;
+- the optional runner VM, VNet, public IP, private endpoint, and private DNS zone;
 - Terraform state container and storage account;
 - bootstrap resource group.
 

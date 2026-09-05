@@ -1,0 +1,58 @@
+#cloud-config
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - jq
+  - python3
+  - python3-pip
+  - python3-venv
+  - unzip
+  - docker.io
+write_files:
+  - path: /usr/local/sbin/install-aro-runner-tools.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor --yes -o /etc/apt/keyrings/microsoft.gpg
+      chmod a+r /etc/apt/keyrings/microsoft.gpg
+      printf '%s\n' 'Types: deb' 'URIs: https://packages.microsoft.com/repos/azure-cli/' 'Suites: noble' 'Components: main' 'Architectures: amd64' 'Signed-by: /etc/apt/keyrings/microsoft.gpg' > /etc/apt/sources.list.d/azure-cli.sources
+
+      apt-get update
+      apt-get install -y azure-cli
+      terraform_version='1.9.8'
+      terraform_archive="terraform_${terraform_version}_linux_amd64.zip"
+      curl -fsSLO "https://releases.hashicorp.com/terraform/${terraform_version}/${terraform_archive}"
+      curl -fsSLO "https://releases.hashicorp.com/terraform/${terraform_version}/terraform_${terraform_version}_SHA256SUMS"
+      grep " ${terraform_archive}$" "terraform_${terraform_version}_SHA256SUMS" | sha256sum --check
+      unzip -o "$terraform_archive" -d /usr/local/bin
+      rm -f "$terraform_archive" "terraform_${terraform_version}_SHA256SUMS"
+      test "$(terraform version -json | jq -r .terraform_version)" = "1.9.8"
+      python3 -m venv /opt/checkov
+      /opt/checkov/bin/pip install --no-cache-dir checkov
+      ln -sf /opt/checkov/bin/checkov /usr/local/bin/checkov
+
+      usermod -aG docker githubrunner
+      systemctl enable --now docker
+
+      install -d -o githubrunner -g githubrunner /opt/actions-runner
+      version="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name | ltrimstr("v")')"
+      curl -fsSL "https://github.com/actions/runner/releases/download/v${version}/actions-runner-linux-x64-${version}.tar.gz" -o /tmp/actions-runner.tar.gz
+      tar -xzf /tmp/actions-runner.tar.gz -C /opt/actions-runner
+      chown -R githubrunner:githubrunner /opt/actions-runner
+      /opt/actions-runner/bin/installdependencies.sh
+      rm -f /tmp/actions-runner.tar.gz
+
+      az version
+      terraform version
+      docker version
+      checkov --version
+      git --version
+      touch /var/lib/aro-runner-tools-ready
+runcmd:
+  - /usr/local/sbin/install-aro-runner-tools.sh

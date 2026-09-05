@@ -6,7 +6,9 @@ aroapplz uses separate user-assigned managed identities for GitHub delivery and 
 
 Bootstrap authenticates interactively to Azure through the operator's current Azure CLI context and to GitHub through a runtime-only PAT in `GITHUB_TOKEN` or `GH_TOKEN`. The Terraform GitHub provider reads `GITHUB_TOKEN`; when only `GH_TOKEN` is supplied, the module maps it to `GITHUB_TOKEN` in process memory. The token is not written or printed by the module.
 
-The bootstrap is responsible for creating the private workload repository, protected environments, Actions variables, generated source files, and workflows. A classic PAT requires `repo` and `workflow`; add `read:org` when the configured owner is an organization. It does not require `admin:org`, `delete_repo`, package scopes, or Azure permissions. The token owner must be permitted to create and administer repositories for the configured user or organization. Organization SAML SSO and PAT policies still apply. Remove the environment variable after bootstrap; it is not used by generated workload workflows, which authenticate to Azure through OIDC.
+The bootstrap is responsible for creating the private workload repository, protected environments, Actions variables, generated source files, and workflows. A classic PAT requires `repo` and `workflow`; add `read:org` when the configured owner is an organization. It does not require `admin:org`, `delete_repo`, package scopes, or Azure permissions for creation/update. The token owner must be permitted to create and administer repositories for the configured user or organization. Organization SAML SSO and PAT policies still apply. Remove the environment variable after bootstrap; it is not used by generated workload workflows, which authenticate to Azure through OIDC.
+
+When the Azure runner is enabled, bootstrap requests a short-lived repository runner registration token after infrastructure apply and supplies it through Azure VM Run Command. It is never a Terraform input or state value. The resulting runner is scoped only to the generated repository.
 
 The operator must be authorized to create the configured Azure, Entra, RBAC, repository, and environment resources.
 
@@ -38,7 +40,7 @@ Terraform assigns each identity its ARO built-in role at the narrowest supported
 
 ## State access boundary
 
-Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. The data endpoint remains network-public for GitHub-hosted runner reachability; private endpoint enforcement requires a self-hosted runner design.
+Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. When the Azure runner is enabled, it reaches the blob endpoint through a bootstrap-managed private endpoint and private DNS zone even when Azure Policy disables public network access.
 
 ## Rotation and review
 

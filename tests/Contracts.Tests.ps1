@@ -29,6 +29,17 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Match 'resource "azapi_resource" "state_container"'
         $bootstrap | Should -Not -Match 'resource "azurerm_storage_account" "state"'
     }
+    It 'provisions an optional repository runner with private state access and no inbound rules' {
+        $runner = Get-Content (Join-Path $root 'bootstrap\modules\azure\runner.tf') -Raw
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $runner | Should -Match 'resource "azurerm_linux_virtual_machine" "runner"'
+        $runner | Should -Match 'resource "azurerm_private_endpoint" "state_blob"'
+        $runner | Should -Match 'privatelink\.blob\.core\.windows\.net'
+        $runner | Should -Not -Match 'security_rule\s*\{'
+        $module | Should -Match 'actions/runners/registration-token'
+        $module | Should -Match "runner_label: self-hosted"
+        $bootstrap | Should -Not -Match 'runner_registration_token|github_runner_token'
+    }
     It 'only configures private repository reviewers when the owner plan supports them' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $githubModule = Get-Content (Join-Path $root 'bootstrap\modules\github\main.tf') -Raw

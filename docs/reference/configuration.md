@@ -21,6 +21,9 @@ Copy one to the ignored `config/local.json` before editing.
 | `github_organization` | Yes | GitHub organization or owner for the generated repository |
 | `github_repository` | Yes | Name of the new private workload repository |
 | `apply_approvers` | Yes | Non-empty array of GitHub usernames used for private-repository environment protection when the owner has GitHub Enterprise |
+| `use_self_hosted_runner` | No | Creates a repository-scoped Azure VM runner and selects it in generated CI/CD callers; default `false` |
+| `runner_vm_size` | Runner only | Azure VM SKU; default `Standard_D2s_v5` |
+| `runner_ssh_public_key_path` | Runner only | Local public key path; default `~/.ssh/id_ed25519.pub`. Only public key material enters Terraform |
 
 Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner plan and writes it only to generated bootstrap input. It is not a user-supplied configuration field. Non-Enterprise owners receive a warning because GitHub does not support the reviewer rule for their generated private repository.
 
@@ -80,6 +83,8 @@ For `spoke`, the subscription segment in `hub_vnet_id` must equal `connectivity_
 Configure the generated GitHub `plan` and `apply` environments with optional `REDHAT_PULL_SECRET`. When Application Gateway is enabled, configure base64 PFX data as `APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA` and its password as `APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD`. Both values are required because the public listener is HTTPS-only; Terraform rejects an Application Gateway plan when either value is absent.
 
 Pipeline and ARO authentication use user-assigned managed identities. The bootstrap discovers the Microsoft-managed ARO resource-provider object ID and writes it to generated Terraform configuration; no operator-managed identity credential belongs in JSON.
+
+Runner registration uses a short-lived GitHub repository registration token after Terraform apply. The token is neither a JSON/Terraform input nor Terraform state. See the [self-hosted runner guide](../operations/self-hosted-runner.md).
 
 ## Command parameters
 

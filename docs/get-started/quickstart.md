@@ -50,6 +50,16 @@ Copy the sample matching the selected mode to the ignored local path:
 
 Replace every placeholder and review the [configuration reference](../reference/configuration.md). Do not put secrets in this JSON file. Leave `aro_version` empty for regional discovery or provide an exact version for validation.
 
+When Azure Policy disables public access to state storage, enable the Azure runner:
+
+```json
+"use_self_hosted_runner": true,
+"runner_vm_size": "Standard_D2s_v5",
+"runner_ssh_public_key_path": "~/.ssh/id_ed25519.pub"
+```
+
+Bootstrap then creates, registers, and verifies a repository-scoped Ubuntu runner with private state access. Review its cost and security boundary in the [self-hosted runner guide](../operations/self-hosted-runner.md).
+
 ## 3. Authenticate
 
 Authenticate Azure CLI and select or verify access to the required subscriptions:
@@ -137,7 +147,7 @@ Deploy-AROLandingZone `
 
 PowerShell confirmation is required. `-AutoApprove` bypasses that prompt and should only be used when an external reviewed control provides equivalent intent.
 
-Bootstrap apply creates the state platform, managed plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. It prints that **no workload apply was triggered**.
+Bootstrap apply creates the state platform, managed plan/apply identities and OIDC credentials, RBAC, and private GitHub workload repository with protected environments and workflows. When enabled, it also creates the Azure runner, registers it to that repository using a short-lived token, verifies required tools, and confirms it is online. It prints that **no workload apply was triggered**.
 
 After bootstrap succeeds, clear the operator PAT from the shell:
 

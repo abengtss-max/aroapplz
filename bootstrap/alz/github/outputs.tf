@@ -11,3 +11,6 @@ output "pipeline_client_ids" {
   value     = module.azure.client_ids
   sensitive = true
 }
+output "runner" {
+  value = module.azure.runner
+}

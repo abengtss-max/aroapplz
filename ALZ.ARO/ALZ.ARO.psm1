@@ -36,6 +36,9 @@ function New-AROConfigWizard {
         github_organization = Read-Host 'GitHub organization or owner'
         github_repository = Read-Host 'New workload repository name'
         apply_approvers = @($approverInput -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        use_self_hosted_runner = (Read-Host 'Create an Azure self-hosted GitHub runner? (true/false)') -eq 'true'
+        runner_vm_size = 'Standard_D2s_v5'
+        runner_ssh_public_key_path = '~/.ssh/id_ed25519.pub'
         aro_version = Read-Host 'ARO version (leave empty to resolve newest available)'
         aro_domain = Read-Host 'Unique ARO domain prefix'
         aro_vnet_cidr = Read-Host 'New ARO VNet CIDR'
@@ -62,6 +65,15 @@ function Assert-AROConfig {
         if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "Missing required configuration value '$name'." }
     }
     if ($Config.deployment_mode -notin @('standalone','spoke')) { throw "deployment_mode must be exactly 'standalone' or 'spoke'." }
+    if (-not $Config.ContainsKey('use_self_hosted_runner')) { $Config.use_self_hosted_runner = $false }
+    if (-not $Config.ContainsKey('runner_vm_size') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_vm_size)) { $Config.runner_vm_size = 'Standard_D2s_v5' }
+    if (-not $Config.ContainsKey('runner_ssh_public_key_path') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_ssh_public_key_path)) { $Config.runner_ssh_public_key_path = '~/.ssh/id_ed25519.pub' }
+    if ($Config.github_organization -notmatch '^[A-Za-z0-9_.-]+$' -or $Config.github_repository -notmatch '^[A-Za-z0-9_.-]+$') { throw 'GitHub owner and repository names contain unsupported characters.' }
+    if ([bool]$Config.use_self_hosted_runner) {
+        $keyPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath([string]$Config.runner_ssh_public_key_path)
+        if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) { throw "Runner SSH public key not found: $keyPath" }
+        $Config.runner_ssh_public_key_path = $keyPath
+    }
     if ($Config.ingress_mode -notin @('none','front_door','application_gateway')) { throw "ingress_mode must be exactly 'none', 'front_door', or 'application_gateway'." }
     if ($Config.ingress_mode -eq 'application_gateway') {
         foreach ($name in @('application_gateway_subnet_cidr','application_gateway_backend_host_name')) {
@@ -196,6 +208,11 @@ function New-BootstrapInput {
         $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
         $files[$relative] = Get-Content -LiteralPath $_.FullName -Raw
     }
+    if ([bool]$Config.use_self_hosted_runner) {
+        foreach ($workflow in @('.github/workflows/ci.yml', '.github/workflows/cd.yml')) {
+            $files[$workflow] = $files[$workflow] -replace 'runner_label: ubuntu-latest', 'runner_label: self-hosted'
+        }
+    }
     $workload = [ordered]@{
         deployment_mode = $Config.deployment_mode
         tenant_id = $Config.tenant_id
@@ -228,9 +245,74 @@ function New-BootstrapInput {
         github_repository = $Config.github_repository
         apply_approvers = @($Config.apply_approvers)
         apply_environment_reviewers_enabled = [bool]$Config.apply_environment_reviewers_enabled
+        use_self_hosted_runner = [bool]$Config.use_self_hosted_runner
+        runner_vm_size = [string]$Config.runner_vm_size
+        runner_ssh_public_key = if ([bool]$Config.use_self_hosted_runner) { (Get-Content -LiteralPath $Config.runner_ssh_public_key_path -Raw).Trim() } else { '' }
         repository_files = $files
     }
     $input | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
+}
+
+function Register-AROSelfHostedRunner {
+    param([Parameter(Mandatory)][hashtable]$Config, [Parameter(Mandatory)][string]$BootstrapRoot)
+
+    if (-not [bool]$Config.use_self_hosted_runner) { return }
+
+    $runner = Invoke-NativeCommand terraform @("-chdir=$BootstrapRoot", 'output', '-json', 'runner') | ConvertFrom-Json
+    if (-not $runner.vm_name -or -not $runner.resource_group_name) { throw 'Terraform did not return the self-hosted runner VM details.' }
+
+    $headers = @{
+        Accept                 = 'application/vnd.github+json'
+        Authorization          = "Bearer $($env:GITHUB_TOKEN)"
+        'X-GitHub-Api-Version' = '2022-11-28'
+        'User-Agent'           = 'ALZ.ARO-bootstrap'
+    }
+    $owner = [uri]::EscapeDataString([string]$Config.github_organization)
+    $repository = [uri]::EscapeDataString([string]$Config.github_repository)
+    $registration = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repository/actions/runners/registration-token" -Headers $headers
+    if ([string]::IsNullOrWhiteSpace([string]$registration.token)) { throw 'GitHub did not return a self-hosted runner registration token.' }
+
+    $repositoryUrl = "https://github.com/$($Config.github_organization)/$($Config.github_repository)"
+    $script = @"
+set -euo pipefail
+for attempt in `$(seq 1 90); do
+    test -f /var/lib/aro-runner-tools-ready && break
+    test "`$attempt" -lt 90 || { echo 'cloud-init runner tool installation did not finish'; exit 1; }
+    sleep 10
+done
+cd /opt/actions-runner
+if [ ! -f .runner ]; then
+    sudo -u githubrunner ./config.sh --unattended --replace --url '$repositoryUrl' --token '$($registration.token)' --name '$($runner.vm_name)' --labels 'aro' --work '_work'
+    ./svc.sh install githubrunner
+fi
+./svc.sh start
+./svc.sh status
+az version >/dev/null
+terraform version >/dev/null
+docker version >/dev/null
+checkov --version >/dev/null
+git --version >/dev/null
+"@
+    [void](Invoke-NativeCommand az @(
+        'vm','run-command','invoke',
+        '--subscription',[string]$Config.bootstrap_subscription_id,
+        '--resource-group',[string]$runner.resource_group_name,
+        '--name',[string]$runner.vm_name,
+        '--command-id','RunShellScript',
+        '--scripts',$script,
+        '--output','none'
+    ))
+
+    for ($attempt = 1; $attempt -le 12; $attempt++) {
+        $registered = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repository/actions/runners" -Headers $headers
+        $match = @($registered.runners | Where-Object { $_.name -eq $runner.vm_name })
+        if ($match.Count -eq 1 -and $match[0].status -eq 'online') {
+            Write-Host "Self-hosted runner verified online: $($runner.vm_name)"
+            return
+        }
+        if ($attempt -lt 12) { Start-Sleep -Seconds 5 }
+    }
+    throw "Self-hosted runner '$($runner.vm_name)' was registered but is not online."
 }
 
 function Deploy-AROLandingZone {
@@ -277,6 +359,7 @@ function Deploy-AROLandingZone {
         if ($BootstrapAction -eq 'apply') {
             if ($AutoApprove -or $PSCmdlet.ShouldProcess("$($config.github_organization)/$($config.github_repository)", 'Apply exact bootstrap Terraform plan')) {
                 [void](Invoke-NativeCommand terraform @('apply','-input=false', $planPath))
+                Register-AROSelfHostedRunner -Config $config -BootstrapRoot $bootstrapRoot
                 Write-Host 'Bootstrap apply completed. No workload apply was triggered.'
             }
         }
