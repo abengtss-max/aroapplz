@@ -139,6 +139,15 @@ The frontend of the internal load balancer is selected by matching the cluster i
 
 A managed WAF policy runs in `front_door_waf_mode` (`Prevention` by default) with the Microsoft default rule set and bot manager rule set, associated with the endpoint through a security policy. A route publishes `/*` over HTTPS with HTTP redirect.
 
+!!! note "Destroying a Front Door landing zone"
+    Azure refuses to delete a Private Link Service that still has a private endpoint connection, and the connection outlives the Front Door origin by a short period. The module inserts a drain so `destroy` waits between removing the origin and removing the service. If a destroy still reports `PrivateLinkServiceWithPrivateEndpointConnectionsCannotBeDeleted`, remove the connection and rerun:
+
+    ```bash
+    CONN=$(az network private-link-service show -g <WORKLOAD_RG> -n pls-<CLUSTER> \
+      --query "privateEndpointConnections[0].name" -o tsv)
+    az network private-endpoint-connection delete -g <WORKLOAD_RG> -n "$CONN" \
+      --resource-name pls-<CLUSTER> --type Microsoft.Network/privateLinkServices --yes
+    ```
 !!! warning "Approve the private link connection after the first apply"
     Front Door raises the private endpoint connection to the Private Link Service in `Pending`. Terraform cannot approve it, because the approval is made on the service side after Front Door requests it. Approve it once per cluster, then the origin becomes reachable:
 
@@ -151,6 +160,7 @@ A managed WAF policy runs in `front_door_waf_mode` (`Prevention` by default) wit
     ```
 !!! warning "The origin certificate is a prerequisite, not an option"
     Azure rejects a Private Link origin unless certificate name checking is enabled, so Front Door mode requires the OpenShift ingress to already present a **publicly trusted** certificate matching `front_door_backend_host_name`. OpenShift serves `*.apps` with a self-signed certificate by default, so replace the ingress certificate before selecting this mode. The origin reports as unhealthy until you do.
+
 
 
 

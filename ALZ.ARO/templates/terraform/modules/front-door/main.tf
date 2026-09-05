@@ -6,6 +6,10 @@ terraform {
       version               = "~> 5.2"
       configuration_aliases = [azurerm.workload]
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12"
+    }
   }
 }
 
@@ -87,6 +91,14 @@ resource "azurerm_cdn_frontdoor_origin_group" "aro" {
   }
 }
 
+# Azure keeps the private endpoint connection for a while after the origin is deleted, and
+# refuses to delete a Private Link Service that still has one. Ordering the origin behind this
+# makes destroy wait between removing the origin and removing the service.
+resource "time_sleep" "private_link_drain" {
+  depends_on       = [azurerm_private_link_service.aro]
+  destroy_duration = "300s"
+}
+
 resource "azurerm_cdn_frontdoor_origin" "aro" {
   provider                      = azurerm.workload
   name                          = "aro-origin"
@@ -107,6 +119,8 @@ resource "azurerm_cdn_frontdoor_origin" "aro" {
     location               = var.location
     private_link_target_id = azurerm_private_link_service.aro.id
   }
+
+  depends_on = [time_sleep.private_link_drain]
 }
 
 # Without a route the endpoint accepts no traffic, which is the defect in the reference implementation.
