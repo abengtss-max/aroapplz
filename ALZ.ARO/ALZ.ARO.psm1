@@ -103,13 +103,8 @@ function Invoke-AROPreflight {
             # without persisting or printing its value.
             $env:GITHUB_TOKEN = $env:GH_TOKEN
         }
-        elseif (Get-Command gh -ErrorAction SilentlyContinue) {
-            # Reuse an authenticated GitHub CLI session without exposing the
-            # credential in command history, generated input, or Terraform.
-            $env:GITHUB_TOKEN = Invoke-NativeCommand gh @('auth','token')
-        }
         else {
-            throw 'Set GITHUB_TOKEN or GH_TOKEN, or authenticate GitHub CLI with gh auth login. The credential is never written or printed.'
+            throw 'Set GITHUB_TOKEN or GH_TOKEN to a least-privilege GitHub token. The module does not reuse GitHub CLI authentication and never writes or prints the credential.'
         }
     }
 
@@ -121,7 +116,7 @@ function Invoke-AROPreflight {
     }
     $githubUserResponse = Invoke-WebRequest -Uri 'https://api.github.com/user' -Headers $githubHeaders -SkipHttpErrorCheck
     if ([int]$githubUserResponse.StatusCode -ne 200) {
-        throw 'GitHub rejected GITHUB_TOKEN. Replace the stale or invalid value (for example: $env:GITHUB_TOKEN = gh auth token) and retry.'
+        throw 'GitHub rejected GITHUB_TOKEN. Replace the stale or invalid value with a least-privilege fine-grained PAT and retry.'
     }
     $githubUser = $githubUserResponse.Content | ConvertFrom-Json
     $owner = [uri]::EscapeDataString([string]$Config.github_organization)

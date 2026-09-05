@@ -23,18 +23,38 @@ Use `"runner_label": "self-hosted"` only when an independently managed repositor
 
 ## 2. Sign in
 
+Sign in to Azure first:
+
 ```powershell
 az login
 az account set --subscription <bootstrap-subscription-id>
+```
 
-# Use a GitHub CLI token without printing it.
+Create a dedicated fine-grained PAT rather than reusing an existing GitHub CLI credential:
+
+1. Open [GitHub fine-grained tokens](https://github.com/settings/personal-access-tokens/new).
+2. Set **Token name** to `aroapplz-bootstrap` and choose a short expiration.
+3. Set **Resource owner** to the user or organization in `github_organization`.
+4. Set **Repository access** to **All repositories**. Bootstrap creates a new repository, so it cannot be selected before deployment.
+5. Under **Repository permissions**, select:
+  - **Administration: Read and write**
+  - **Actions: Read and write**
+  - **Contents: Read and write**
+  - **Environments: Read and write**
+  - **Variables: Read and write**
+  - **Workflows: Read and write**
+6. Generate and copy the token. If organization approval is required, wait until the token is approved.
+
+Load it only into the current PowerShell process. The masked prompt does not display or save it:
+
+```powershell
 Remove-Item Env:GITHUB_TOKEN,Env:GH_TOKEN -ErrorAction SilentlyContinue
-$env:GITHUB_TOKEN = gh auth token
+$env:GITHUB_TOKEN = Read-Host 'Fine-grained GitHub PAT' -MaskInput
 
 Import-Module ./ALZ.ARO/ALZ.ARO.psd1 -Force
 ```
 
-The GitHub credential needs classic PAT scopes `repo` and `workflow`; add `read:org` for an organization. Add `delete_repo` now if the same token will be used for teardown. See [prerequisites](prerequisites.md) for access requirements.
+The token is limited to one resource owner and the permissions above. The module does not reuse GitHub CLI authentication. **Administration: Read and write** also permits bootstrap teardown to delete the generated repository. See [prerequisites](prerequisites.md) for owner-policy requirements.
 
 ## 3. Plan and apply bootstrap
 
@@ -55,24 +75,39 @@ Enter `Y` at the PowerShell confirmation prompt. This creates the Azure state pl
 
 ## 4. Deploy ARO
 
-Read the generated repository name and dispatch its delivery workflow:
+Choose GitHub UI unless command-line dispatch is required.
 
-```powershell
-$config = Get-Content ./config/local.json -Raw | ConvertFrom-Json
-$repo = "$($config.github_organization)/$($config.github_repository)"
+=== "GitHub UI"
 
-gh workflow run "02 ARO Landing Zone Continuous Delivery" `
-  --repo $repo `
-  --ref main `
-  -f action=apply
-```
+    1. Open the generated workload repository.
+    2. Select **Actions**.
+    3. Select **02 ARO Landing Zone Continuous Delivery**.
+    4. Select **Run workflow**.
+    5. Keep the default branch, choose `apply`, and select **Run workflow**.
+    6. Open the run, review the plan, and approve the `apply` environment if prompted.
 
-Open the run, review its plan, and approve the `apply` environment when GitHub requests approval:
+=== "GitHub CLI"
 
-```powershell
-gh run list --repo $repo --workflow "02 ARO Landing Zone Continuous Delivery" --limit 1
-gh run watch --repo $repo
-```
+    Use the dedicated fine-grained PAT for this process instead of a potentially broader GitHub CLI credential:
+
+    ```powershell
+    $config = Get-Content ./config/local.json -Raw | ConvertFrom-Json
+    $repo = "$($config.github_organization)/$($config.github_repository)"
+    $env:GH_TOKEN = $env:GITHUB_TOKEN
+
+    gh workflow run "02 ARO Landing Zone Continuous Delivery" `
+      --repo $repo `
+      --ref main `
+      -f action=apply
+
+    $runId = gh run list `
+      --repo $repo `
+      --workflow "02 ARO Landing Zone Continuous Delivery" `
+      --limit 1 `
+      --json databaseId `
+      --jq '.[0].databaseId'
+    gh run watch $runId --repo $repo
+    ```
 
 When `REDHAT_PULL_SECRET` is required, add it to both generated GitHub environments before dispatch. Application Gateway HTTPS also requires the certificate data and password described in the [configuration reference](../reference/configuration.md).
 
@@ -84,28 +119,44 @@ Destroy in this order: **workload first, bootstrap second**. Keep this clone, `c
 
 Skip this step only if the workload workflow never successfully applied resources.
 
-```powershell
-$config = Get-Content ./config/local.json -Raw | ConvertFrom-Json
-$repo = "$($config.github_organization)/$($config.github_repository)"
+=== "GitHub UI"
 
-gh workflow run "02 ARO Landing Zone Continuous Delivery" `
-  --repo $repo `
-  --ref main `
-  -f action=destroy
+    1. Open the generated workload repository.
+    2. Select **Actions** > **02 ARO Landing Zone Continuous Delivery**.
+    3. Select **Run workflow** from the default branch.
+    4. Choose `destroy` and select **Run workflow**.
+    5. Review the destroy plan, approve the `apply` environment if prompted, and wait for success.
 
-gh run list --repo $repo --workflow "02 ARO Landing Zone Continuous Delivery" --limit 1
-gh run watch --repo $repo
-```
+=== "GitHub CLI"
+
+    ```powershell
+    $config = Get-Content ./config/local.json -Raw | ConvertFrom-Json
+    $repo = "$($config.github_organization)/$($config.github_repository)"
+    $env:GH_TOKEN = $env:GITHUB_TOKEN
+
+    gh workflow run "02 ARO Landing Zone Continuous Delivery" `
+      --repo $repo `
+      --ref main `
+      -f action=destroy
+
+    $runId = gh run list `
+      --repo $repo `
+      --workflow "02 ARO Landing Zone Continuous Delivery" `
+      --limit 1 `
+      --json databaseId `
+      --jq '.[0].databaseId'
+    gh run watch $runId --repo $repo
+    ```
 
 Review the destroy plan, approve the `apply` environment if prompted, and wait for a successful run before continuing.
 
 ### 2. Create and review the bootstrap destroy plan
 
-The token used here must include `delete_repo`. These commands replace any stale process token with the current GitHub CLI token:
+Reuse the dedicated fine-grained PAT created in step 2. Its **Administration: Read and write** permission allows deletion of the generated repository. Reload it if it is no longer present in this PowerShell process:
 
 ```powershell
 Remove-Item Env:GITHUB_TOKEN,Env:GH_TOKEN -ErrorAction SilentlyContinue
-$env:GITHUB_TOKEN = gh auth token
+$env:GITHUB_TOKEN = Read-Host 'Fine-grained GitHub PAT' -MaskInput
 Import-Module ./ALZ.ARO/ALZ.ARO.psd1 -Force
 
 Deploy-AROLandingZone -BootstrapAction destroy -WhatIf

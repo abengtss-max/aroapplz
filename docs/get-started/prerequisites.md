@@ -9,7 +9,7 @@ Complete the tooling, access, and platform checks before generating a bootstrap 
 | PowerShell | 7.2 or later |
 | Terraform | 1.9 or later; repository validation currently uses 1.9.8 |
 | Azure CLI | Installed, authenticated, and providing the `az aro` command |
-| GitHub token | Runtime-only PAT in `GITHUB_TOKEN` or `GH_TOKEN`; classic scopes: `repo`, `workflow`, and `read:org` for an organization target |
+| GitHub token | Dedicated fine-grained PAT in `GITHUB_TOKEN` or `GH_TOKEN`; repository permissions are listed below |
 | Git | Required for the normal review workflow |
 
 The module preflight verifies `az`, `terraform`, Azure CLI authentication, subscription visibility, and presence of a GitHub token. In `spoke` mode it also verifies that the existing hub VNet can be read.
@@ -42,8 +42,9 @@ ARO versions vary by region. The module calls `az aro get-versions --location` a
 
 - Bootstrap creates the private GitHub workload repository, environments, variables, generated files, and workflows through the Terraform GitHub provider.
 - The PAT user must be allowed to create private repositories and administer repository contents, Actions variables, and environments for the configured owner.
-- A classic PAT needs `repo` and `workflow`; add `read:org` when the configured owner is an organization. `admin:org`, `delete_repo`, and package scopes are not required.
-- For an organization, authorize the PAT for SAML SSO when required and confirm that organization PAT policy permits it. Do not store the PAT in configuration or generated repository secrets.
+- Prefer a fine-grained PAT scoped to the configured resource owner and **All repositories**, because bootstrap creates a repository that does not exist when the token is issued.
+- Grant repository permissions **Administration**, **Actions**, **Contents**, **Environments**, **Variables**, and **Workflows** at **Read and write**. Administration permits creation, management, and later deletion of the generated repository.
+- For an organization, confirm that fine-grained PAT policy permits the token and wait for administrator approval when required. Do not store the PAT in configuration or generated repository secrets.
 - The requested target repository name must be available to the supplied owner or organization.
 - Supply at least one GitHub username in `apply_approvers`.
 - Confirm the owner permits private-repository creation, GitHub environments, Actions, and OIDC. Required reviewers on private repositories require GitHub Enterprise; other plans retain the manual immutable-SHA and exact-plan safeguards but cannot add the reviewer protection rule.

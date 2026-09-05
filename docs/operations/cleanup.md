@@ -45,17 +45,13 @@ Do not remove bootstrap identities or state storage before workload destroy comp
 
 ## 3. Prepare GitHub deletion permission
 
-Bootstrap teardown deletes the generated private repository. A classic PAT therefore needs:
-
-- `repo`;
-- `workflow`;
-- `delete_repo`;
-- `read:org` when the configured owner is an organization.
+Bootstrap teardown deletes the generated private repository. Reuse the dedicated fine-grained PAT with **Administration: Read and write** for the configured resource owner. The token must have access to the generated repository and its owner must be allowed to delete it.
 
 Set the teardown PAT only in the current process:
 
 ```powershell
-$env:GITHUB_TOKEN = Read-Host 'GitHub teardown PAT' -MaskInput
+Remove-Item Env:GITHUB_TOKEN,Env:GH_TOKEN -ErrorAction SilentlyContinue
+$env:GITHUB_TOKEN = Read-Host 'Fine-grained GitHub PAT' -MaskInput
 ```
 
 The token owner must also be allowed to delete the target repository. Organization policy or SAML authorization can impose additional requirements.

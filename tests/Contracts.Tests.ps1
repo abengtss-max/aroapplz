@@ -46,20 +46,21 @@ Describe 'Architecture contracts' {
         $githubModule = Get-Content (Join-Path $root 'bootstrap\modules\github\main.tf') -Raw
         $githubModule | Should -Match 'for name, value in local\.repository_variables.*if value != ""'
     }
-    It 'maps GH_TOKEN to the Terraform provider token without persisting it' {
+    It 'requires an explicit GitHub token and maps GH_TOKEN without persisting it' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'
-        $module | Should -Match "Invoke-NativeCommand gh @\('auth','token'\)"
+        $module | Should -Match 'does not reuse GitHub CLI authentication'
+        $module | Should -Not -Match "Invoke-NativeCommand gh @\('auth','token'\)"
         $module | Should -Match "GitHub rejected GITHUB_TOKEN"
         $bootstrap | Should -Not -Match 'variable\s+"github_token"|token\s*=\s*var\.github'
     }
     It 'documents the GitHub bootstrap PAT scopes' {
         $quickstart = Get-Content (Join-Path $root 'docs\get-started\quickstart.md') -Raw
-        $quickstart | Should -Match '`repo`'
-        $quickstart | Should -Match '`workflow`'
-        $quickstart | Should -Match '`read:org`'
-        $quickstart | Should -Match '`delete_repo`'
-        $quickstart | Should -Match 'token used here must include `delete_repo`'
+        $quickstart | Should -Match 'fine-grained PAT'
+        $quickstart | Should -Match 'Administration.*Read and write'
+        $quickstart | Should -Match 'Workflows.*Read and write'
+        $quickstart | Should -Match "Read-Host 'Fine-grained GitHub PAT' -MaskInput"
+        $quickstart | Should -Not -Match 'gh auth token'
     }
     It 'provides a plan-first bootstrap destroy path and clean-slate documentation' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
