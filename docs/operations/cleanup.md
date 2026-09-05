@@ -121,6 +121,8 @@ Remove-Item ./bootstrap-state-backup.json -ErrorAction SilentlyContinue
 
 Only remove local state after both Terraform destroy and verification succeed.
 
+An independently managed repository runner is not deleted by this process. Its repository registration becomes invalid when the generated repository is deleted, and a private endpoint to the deleted state storage account becomes disconnected. If bootstrap is later recreated, repair those two independent-runner connections before starting a workload workflow.
+
 ## Recovery when teardown fails
 
 Keep the local state, configuration, PAT, and terminal output. Correct the reported issue and rerun the same destroy action; Terraform resumes from current state. Do not use `terraform state rm`, delete the generated repository manually, or delete the bootstrap resource group unless a reviewed state-recovery procedure explicitly requires it.

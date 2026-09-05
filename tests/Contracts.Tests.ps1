@@ -82,6 +82,13 @@ Describe 'Architecture contracts' {
         $module | Should -Match 'Test-Path -LiteralPath \$OutputConfigPath -PathType Leaf'
         $module | Should -Match 'Using existing configuration:'
     }
+    It 'checks ARO provider registration before bootstrap creation' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match "'provider','show'"
+        $module | Should -Match "'Microsoft.RedHatOpenShift'"
+        $module | Should -Match "\$BootstrapAction -ne 'destroy'"
+        $module | Should -Match 'az provider register --namespace Microsoft.RedHatOpenShift'
+    }
     It 'excludes Terraform provider caches from generated repository files' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match "notmatch '\(\^\|/\)\\\.terraform/'"

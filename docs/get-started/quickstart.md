@@ -21,6 +21,9 @@ Replace every placeholder in `config/local.json`. Keep secrets out of this file.
 
 Use `"runner_label": "self-hosted"` only when an independently managed repository runner is already available. The accelerator does not create or destroy runner infrastructure.
 
+!!! warning "After clean-slate recreation"
+  Deleting and recreating bootstrap invalidates a repository-scoped runner registration and disconnects any private endpoint targeting the deleted state storage account. After bootstrap succeeds, re-register the independent runner with the new repository, recreate its state-storage private endpoint when used, and confirm the runner is online before deploying ARO.
+
 ## 2. Sign in
 
 Sign in to Azure first:
@@ -28,6 +31,10 @@ Sign in to Azure first:
 ```powershell
 az login
 az account set --subscription <bootstrap-subscription-id>
+az provider register `
+  --namespace Microsoft.RedHatOpenShift `
+  --subscription <workload-subscription-id> `
+  --wait
 ```
 
 Create a dedicated fine-grained PAT rather than reusing an existing GitHub CLI credential:

@@ -163,6 +163,18 @@ function Invoke-AROPreflight {
     }
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.bootstrap_subscription_id,'--output','none'))
     [void](Invoke-NativeCommand az @('account','show','--subscription',[string]$Config.workload_subscription_id,'--output','none'))
+    if ($BootstrapAction -ne 'destroy') {
+        $aroProviderState = Invoke-NativeCommand az @(
+            'provider','show',
+            '--namespace','Microsoft.RedHatOpenShift',
+            '--subscription',[string]$Config.workload_subscription_id,
+            '--query','registrationState',
+            '--output','tsv'
+        )
+        if ([string]$aroProviderState -ne 'Registered') {
+            throw "Workload subscription '$($Config.workload_subscription_id)' is not registered for Microsoft.RedHatOpenShift. Run: az provider register --namespace Microsoft.RedHatOpenShift --subscription $($Config.workload_subscription_id) --wait"
+        }
+    }
     if ($Config.deployment_mode -eq 'spoke') {
         [void](Invoke-NativeCommand az @('network','vnet','show','--ids',[string]$Config.hub_vnet_id,'--subscription',[string]$Config.connectivity_subscription_id,'--output','none'))
     }

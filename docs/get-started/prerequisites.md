@@ -29,7 +29,7 @@ The exact authority model is organization-specific. Confirm it with the subscrip
 
 Prepare and verify:
 
-- a workload subscription with ARO resource-provider readiness and sufficient regional quota;
+- a workload subscription registered for `Microsoft.RedHatOpenShift` with sufficient regional quota;
 - a unique ARO domain prefix;
 - non-overlapping VNet, control-plane subnet, worker subnet, pod, and service CIDRs;
 - an optional Red Hat pull secret when required by the intended workload.
