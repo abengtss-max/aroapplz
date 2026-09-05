@@ -39,10 +39,9 @@ resource "azapi_resource" "state" {
   }
 }
 
-resource "azapi_resource" "blob_service" {
-  type      = "Microsoft.Storage/storageAccounts/blobServices@2023-05-01"
-  name      = "default"
-  parent_id = azapi_resource.state.id
+resource "azapi_update_resource" "blob_service" {
+  type        = "Microsoft.Storage/storageAccounts/blobServices@2023-05-01"
+  resource_id = "${azapi_resource.state.id}/blobServices/default"
   body = {
     properties = {
       changeFeed                     = { enabled = true }
@@ -53,10 +52,20 @@ resource "azapi_resource" "blob_service" {
   }
 }
 
+# The default blob service is created automatically with the storage account.
+# Forget the former create-managed resource during upgrades without deleting it.
+removed {
+  from = azapi_resource.blob_service
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 resource "azapi_resource" "state_container" {
   type      = "Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01"
   name      = "tfstate"
-  parent_id = azapi_resource.blob_service.id
+  parent_id = azapi_update_resource.blob_service.resource_id
   body = {
     properties = { publicAccess = "None" }
   }

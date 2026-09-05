@@ -26,6 +26,10 @@ Describe 'Architecture contracts' {
     It 'creates state through the ARM plane with shared keys disabled' {
         $bootstrap | Should -Match 'resource "azapi_resource" "state"'
         $bootstrap | Should -Match 'allowSharedKeyAccess\s+=\s+false'
+        $bootstrap | Should -Match 'resource "azapi_update_resource" "blob_service"'
+        $bootstrap | Should -Match 'resource_id\s*=\s*"\$\{azapi_resource\.state\.id\}/blobServices/default"'
+        $bootstrap | Should -Match 'from = azapi_resource\.blob_service'
+        $bootstrap | Should -Match 'destroy = false'
         $bootstrap | Should -Match 'resource "azapi_resource" "state_container"'
         $bootstrap | Should -Not -Match 'resource "azurerm_storage_account" "state"'
     }
