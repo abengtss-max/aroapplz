@@ -36,6 +36,10 @@ Describe 'Architecture contracts' {
         $module | Should -Match '\[string\]\$ownerPlan -eq ''enterprise'''
         $githubModule | Should -Match 'var\.apply_environment_reviewers_enabled \? \[1\] : \[\]'
     }
+    It 'does not send empty Actions variables to GitHub' {
+        $githubModule = Get-Content (Join-Path $root 'bootstrap\modules\github\main.tf') -Raw
+        $githubModule | Should -Match 'for name, value in local\.repository_variables.*if value != ""'
+    }
     It 'maps GH_TOKEN to the Terraform provider token without persisting it' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$env:GITHUB_TOKEN\s*=\s*\$env:GH_TOKEN'

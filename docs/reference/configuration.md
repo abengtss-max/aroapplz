@@ -26,6 +26,8 @@ Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner pl
 
 Generated workload names include `rg-<service>-<environment>-aro` and `aro-<service>-<environment>`.
 
+For `standalone`, the empty connectivity subscription value is omitted from generated GitHub Actions variables; the generated Terraform configuration selects the workload subscription. `spoke` publishes and uses the configured connectivity subscription ID.
+
 ## ARO and network inputs
 
 | Field | Required | Meaning |

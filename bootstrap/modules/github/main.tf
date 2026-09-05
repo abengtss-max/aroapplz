@@ -67,7 +67,7 @@ locals {
 }
 
 resource "github_actions_variable" "repository" {
-  for_each      = local.repository_variables
+  for_each      = { for name, value in local.repository_variables : name => value if value != "" }
   repository    = github_repository.workload.name
   variable_name = each.key
   value         = each.value
