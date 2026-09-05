@@ -159,6 +159,13 @@ Describe 'Architecture contracts' {
         $module | Should -Match 'az group create -n \$\(\$Config\.managed_resource_group_name\)'
         $module | Should -Match 'az policy exemption create'
     }
+    It 'evaluates policy inherited from management groups, which subscription scope does not return' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match 'function Get-AROManagementGroupAncestorScope'
+        $module | Should -Match "'account', 'management-group', 'entities', 'list'"
+        $module | Should -Match 'Get-AROManagementGroupAncestorScope -SubscriptionId \$SubscriptionId'
+        $module | Should -Match 'Management Group Reader'
+    }
     It 'derives the managed resource group name once and reuses it everywhere' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$Config\.managed_resource_group_name = "rg-\$\(\$Config\.cluster_name\)-managed"'

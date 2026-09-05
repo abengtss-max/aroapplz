@@ -23,6 +23,8 @@ Assigned at **Landing Zones/Corp** with effect `Deny`. It includes storage `publ
 
 The equivalent Microsoft-internal policy is `StorageAccount_PublicNetwork_Modify`, which uses `Modify` rather than `Deny` and therefore fails later and far more obscurely — the cluster reaches base-resource creation and then returns a generic `InternalServerError`.
 
+The resource provider builds each cluster storage account with `defaultAction: Deny`, `bypass: AzureServices`, and virtual network rules covering its own subnets plus any cluster subnet that carries the `Microsoft.Storage` service endpoint ([`pkg/cluster/deploybaseresources_additional.go`](https://github.com/Azure/ARO-RP/blob/master/pkg/cluster/deploybaseresources_additional.go)). It never sets `publicNetworkAccess`. Forcing that property to `Disabled` therefore makes every one of those network rules inert and locks out the resource provider itself, which is why the failure surfaces as a generic error with no virtual machines created.
+
 === "ALZ Terraform"
 
     ```terraform
@@ -109,12 +111,25 @@ az policy exemption create -n aro-storage-public-endpoint \
 Discover the two IDs, which vary by ALZ version:
 
 ```bash
+# Subscription scope does not return assignments inherited from a management group,
+# so query each management group in the ancestry as well.
 az policy assignment list --scope "/subscriptions/<SUB>" --disable-scope-strict-match \
   --query "[].{name:name,id:id,definition:policyDefinitionId}" -o table
 
-az policy set-definition show --id <SET_DEFINITION_ID> \
-  --query "policyDefinitions[?contains(policyDefinitionReferenceId,'Storage')].policyDefinitionReferenceId" -o tsv
+az account management-group entities list \
+  --query "[?name=='<SUB>'].parent.id" -o tsv
+
+# --disable-scope-strict-match sends atScopeAndBelow(), which management group scope rejects.
+az policy assignment list --scope "/providers/Microsoft.Management/managementGroups/<MG>" \
+  --query "[].{name:name,id:id,definition:policyDefinitionId}" -o table
+
+# There is no --id parameter; pass the name and the scope that holds the definition.
+az policy set-definition show --name <SET_DEFINITION_NAME> --management-group <MG> \
+  --query "policyDefinitions[].policyDefinitionReferenceId" -o tsv
 ```
+
+!!! note "Exempt only the public network member"
+    An initiative may also contain a member that sets `allowSharedKeyAccess` to `false`. That does not need exempting for a managed-identity cluster: the resource provider sets the same value itself, because workload identity clusters use user delegation SAS rather than account keys. Exempt only the member that sets `publicNetworkAccess`, so the carve-out stays as narrow as possible.
 
 !!! warning "ARO must accept the pre-created group"
     ARO reuses an existing managed resource group only when its location matches the cluster location and `managedBy` equals the cluster resource ID exactly. Otherwise it fails with `ClusterResourceGroupAlreadyExists`. That behaviour is in the resource provider source but is not a documented contract, and the Azure CLI rejects a pre-existing group for `--cluster-resource-group`. Validate it once in a non-production subscription. To avoid the dependency entirely, replace `-g <MANAGED_RG>` with `--scope "/subscriptions/<SUB>"`.
@@ -139,4 +154,4 @@ Remember that Corp versus Online is a connectivity decision as well as a policy 
 
 ## Preflight
 
-`Deploy-AROLandingZone` inspects effective policy assignments on the workload subscription and warns when a known-blocking assignment is enforced, naming the assignment, its scope, and the managed resource group to scope the carve-out to. The check is deliberately a warning rather than a failure, because it cannot see exemptions, tag opt-outs, or resource selectors that may already permit the deployment. It is not exhaustive — always run a workload plan in the target policy context.
+`Deploy-AROLandingZone` inspects effective policy assignments on the workload subscription and warns when a known-blocking assignment is enforced, naming the assignment, its scope, and the managed resource group to scope the carve-out to. Because listing assignments at subscription scope does not return assignments inherited from a management group, the check also walks the management group ancestry and queries each level. That needs **Management Group Reader** on the ancestry; without it the check warns that inherited policy could not be evaluated rather than reporting a clean result. The check is deliberately a warning rather than a failure, because it cannot see exemptions, tag opt-outs, or resource selectors that may already permit the deployment. It is not exhaustive — always run a workload plan in the target policy context.

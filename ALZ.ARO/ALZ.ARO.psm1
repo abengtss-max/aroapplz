@@ -111,36 +111,93 @@ function Resolve-AROPolicyReferenceId {
     param([Parameter(Mandatory)][string]$PolicyDefinitionId)
 
     if ($PolicyDefinitionId -notmatch '/policySetDefinitions/') { return '' }
+
+    # az policy set-definition show has no --id parameter, so the name and scope are passed separately.
+    $showArguments = @('policy', 'set-definition', 'show', '--name', ($PolicyDefinitionId -split '/')[-1])
+    if ($PolicyDefinitionId -match '/managementGroups/([^/]+)/') { $showArguments += @('--management-group', $Matches[1]) }
+    elseif ($PolicyDefinitionId -match '^/subscriptions/([^/]+)/') { $showArguments += @('--subscription', $Matches[1]) }
+    $showArguments += @('--query', 'policyDefinitions[].policyDefinitionReferenceId', '--output', 'json')
+
     try {
-        $raw = Invoke-NativeCommand az @(
-            'policy', 'set-definition', 'show',
-            '--id', $PolicyDefinitionId,
-            '--query', "policyDefinitions[?contains(policyDefinitionReferenceId,'torage')].policyDefinitionReferenceId",
-            '--output', 'json'
-        )
-        return (@($raw | ConvertFrom-Json) -join ' ')
+        $referenceIds = @(Invoke-NativeCommand az $showArguments | ConvertFrom-Json)
     }
     catch { return '' }
+
+    # Only the public network member blocks ARO. A member that disables shared key access
+    # sets what the resource provider already sets on workload identity clusters.
+    $blocking = @($referenceIds | Where-Object { $_ -match '(?i)storage' -and $_ -match '(?i)publicnetwork' })
+    if ($blocking.Count -eq 0) { $blocking = @($referenceIds | Where-Object { $_ -match '(?i)storage' }) }
+    return ($blocking -join ' ')
+}
+
+# Listing assignments at subscription scope does not return assignments inherited
+# from a management group, so the ancestry is walked and queried explicitly.
+function Get-AROManagementGroupAncestorScope {
+    param([Parameter(Mandatory)][string]$SubscriptionId)
+
+    try {
+        $raw = Invoke-NativeCommand az @('account', 'management-group', 'entities', 'list', '--output', 'json')
+    }
+    catch {
+        Write-Warning "Could not enumerate management groups, so policy inherited from them was not checked. Grant Management Group Reader and rerun, or review inherited policy manually. $($_.Exception.Message)"
+        return @()
+    }
+
+    $entities = @($raw | ConvertFrom-Json)
+    if ($entities.Count -eq 0) {
+        Write-Warning 'No management groups are visible to this identity, so policy inherited from them was not checked. Grant Management Group Reader and rerun, or review inherited policy manually.'
+        return @()
+    }
+
+    $byName = @{}
+    foreach ($entity in $entities) { $byName[[string]$entity.name] = $entity }
+
+    $scopes = [System.Collections.Generic.List[string]]::new()
+    $current = $byName[$SubscriptionId]
+    if (-not $current) {
+        Write-Warning "Subscription '$SubscriptionId' was not found in the visible management group hierarchy, so inherited policy was not checked."
+        return @()
+    }
+
+    # Bounded because Azure allows at most six management group levels below the root.
+    for ($depth = 0; $depth -lt 10; $depth++) {
+        if (-not $current -or -not $current.parent -or -not $current.parent.id) { break }
+        $parentId = [string]$current.parent.id
+        if ($scopes.Contains($parentId)) { break }
+        $scopes.Add($parentId)
+        $current = $byName[($parentId -split '/')[-1]]
+    }
+    return $scopes.ToArray()
 }
 
 function Test-AROPolicyCompatibility {
     param([Parameter(Mandatory)][string]$SubscriptionId)
 
-    try {
-        $raw = Invoke-NativeCommand az @(
-            'policy', 'assignment', 'list',
-            '--scope', "/subscriptions/$SubscriptionId",
-            '--disable-scope-strict-match',
-            '--output', 'json'
-        )
-    }
-    catch {
-        Write-Warning "Could not read policy assignments for subscription '$SubscriptionId'; ARO policy compatibility was not checked. $($_.Exception.Message)"
-        return @()
+    $scopes = @("/subscriptions/$SubscriptionId") + @(Get-AROManagementGroupAncestorScope -SubscriptionId $SubscriptionId)
+    $assignments = @()
+    $seenAssignmentIds = @{}
+    foreach ($scope in $scopes) {
+        $listArguments = @('policy', 'assignment', 'list', '--scope', $scope)
+        # --disable-scope-strict-match sends atScopeAndBelow(), which management group scope rejects.
+        if ($scope -notlike '/providers/Microsoft.Management/managementGroups/*') { $listArguments += '--disable-scope-strict-match' }
+        $listArguments += @('--output', 'json')
+        try {
+            $raw = Invoke-NativeCommand az $listArguments
+        }
+        catch {
+            Write-Warning "Could not read policy assignments at '$scope'; assignments there were not checked. $($_.Exception.Message)"
+            continue
+        }
+        foreach ($assignment in @($raw | ConvertFrom-Json)) {
+            $assignmentId = [string]$assignment.id
+            if ($assignmentId -and $seenAssignmentIds.ContainsKey($assignmentId)) { continue }
+            if ($assignmentId) { $seenAssignmentIds[$assignmentId] = $true }
+            $assignments += $assignment
+        }
     }
 
     $findings = @()
-    foreach ($assignment in @($raw | ConvertFrom-Json)) {
+    foreach ($assignment in $assignments) {
         $properties = $assignment.PSObject.Properties
         if ($properties['enforcementMode'] -and $assignment.enforcementMode -eq 'DoNotEnforce') { continue }
         if (-not $properties['policyDefinitionId']) { continue }
