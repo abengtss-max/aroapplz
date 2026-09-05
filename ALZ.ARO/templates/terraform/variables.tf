@@ -135,6 +135,12 @@ variable "application_gateway_ssl_certificate_password" {
   default     = null
   nullable    = true
 }
+variable "application_gateway_backend_root_certificate" {
+  description = "Base64-encoded root certificate of the OpenShift ingress certificate. Application Gateway v2 marks a self-signed backend unhealthy without it. Omit only when the ingress controller presents a certificate from a well-known CA."
+  type        = string
+  default     = null
+  nullable    = true
+}
 variable "tags" {
   type    = map(string)
   default = { managed_by = "terraform", accelerator = "ALZ.ARO" }

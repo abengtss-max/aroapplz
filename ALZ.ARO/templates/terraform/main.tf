@@ -2,6 +2,7 @@ locals {
   pull_secret                                  = try(trimspace(var.pull_secret), "") == "" ? null : var.pull_secret
   application_gateway_ssl_certificate_data     = try(trimspace(var.application_gateway_ssl_certificate_data), "") == "" ? null : var.application_gateway_ssl_certificate_data
   application_gateway_ssl_certificate_password = try(var.application_gateway_ssl_certificate_password, "") == "" ? null : var.application_gateway_ssl_certificate_password
+  application_gateway_backend_root_certificate = try(trimspace(var.application_gateway_backend_root_certificate), "") == "" ? null : var.application_gateway_backend_root_certificate
 }
 
 resource "terraform_data" "input_contract" {

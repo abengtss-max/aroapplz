@@ -87,14 +87,23 @@ resource "azurerm_application_gateway" "aro" {
     }
   }
 
+  dynamic "trusted_root_certificate" {
+    for_each = local.application_gateway_backend_root_certificate == null ? [] : [1]
+    content {
+      name = "aro-ingress-root"
+      data = local.application_gateway_backend_root_certificate
+    }
+  }
+
   backend_http_settings {
-    name                  = "aro-https"
-    cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
-    host_name             = var.application_gateway_backend_host_name
-    request_timeout       = 60
-    probe_name            = "aro-https-probe"
+    name                           = "aro-https"
+    cookie_based_affinity          = "Disabled"
+    port                           = 443
+    protocol                       = "Https"
+    host_name                      = var.application_gateway_backend_host_name
+    request_timeout                = 60
+    probe_name                     = "aro-https-probe"
+    trusted_root_certificate_names = local.application_gateway_backend_root_certificate == null ? null : ["aro-ingress-root"]
   }
 
   ssl_certificate {
