@@ -28,9 +28,10 @@ variable "ssl_certificate_password" {
   sensitive = true
 }
 variable "backend_root_certificate" {
-  type      = string
-  sensitive = true
-  nullable  = true
+  # Not sensitive: this is a public root certificate, and marking it sensitive
+  # makes the dynamic block that consumes it an invalid for_each argument.
+  type     = string
+  nullable = true
 }
 variable "log_analytics_workspace_id" {
   type = string
