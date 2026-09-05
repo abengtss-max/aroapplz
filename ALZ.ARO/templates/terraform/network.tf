@@ -15,7 +15,6 @@ resource "azurerm_virtual_network" "aro" {
 }
 
 resource "azurerm_subnet" "control_plane" {
-  # checkov:skip=CKV2_AZURE_31:ARO owns and manages the control-plane subnet NSG.
   provider                                      = azurerm.workload
   name                                          = "snet-control-plane"
   resource_group_name                           = azurerm_resource_group.aro.name
@@ -23,13 +22,17 @@ resource "azurerm_subnet" "control_plane" {
   address_prefixes                              = [var.control_plane_subnet_cidr]
   private_link_service_network_policies_enabled = false
 
+  # ARO reads Microsoft.Storage subnets to build the cluster storage account ACL; omitting it leaves nodes unable to fetch ignition.
+  service_endpoint {
+    service = "Microsoft.Storage"
+  }
+
   service_endpoint {
     service = "Microsoft.ContainerRegistry"
   }
 }
 
 resource "azurerm_subnet" "worker" {
-  # checkov:skip=CKV2_AZURE_31:ARO owns and manages the worker subnet NSG.
   provider             = azurerm.workload
   name                 = "snet-worker"
   resource_group_name  = azurerm_resource_group.aro.name
@@ -37,8 +40,35 @@ resource "azurerm_subnet" "worker" {
   address_prefixes     = [var.worker_subnet_cidr]
 
   service_endpoint {
+    service = "Microsoft.Storage"
+  }
+
+  service_endpoint {
     service = "Microsoft.ContainerRegistry"
   }
+}
+
+# Bring-your-own NSG, one per cluster subnet. ARO forbids denying control-plane
+# or worker traffic in either direction, so no custom rules are added.
+resource "azurerm_network_security_group" "aro" {
+  provider            = azurerm.workload
+  for_each            = toset(["control-plane", "worker"])
+  name                = "nsg-${var.cluster_name}-${each.key}"
+  location            = azurerm_resource_group.aro.location
+  resource_group_name = azurerm_resource_group.aro.name
+  tags                = var.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "control_plane" {
+  provider                  = azurerm.workload
+  subnet_id                 = azurerm_subnet.control_plane.id
+  network_security_group_id = azurerm_network_security_group.aro["control-plane"].id
+}
+
+resource "azurerm_subnet_network_security_group_association" "worker" {
+  provider                  = azurerm.workload
+  subnet_id                 = azurerm_subnet.worker.id
+  network_security_group_id = azurerm_network_security_group.aro["worker"].id
 }
 
 resource "azurerm_subnet" "application_gateway" {

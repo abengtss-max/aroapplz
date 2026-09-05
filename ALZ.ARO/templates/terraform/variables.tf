@@ -56,6 +56,15 @@ variable "worker_node_count" {
   }
 }
 variable "aro_resource_provider_object_id" { type = string }
+variable "managed_resource_group_name" {
+  description = "Deterministic ARO-managed resource group name so platform teams can scope policy exemptions before deployment. Defaults to rg-<cluster_name>-managed."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.managed_resource_group_name == lower(var.managed_resource_group_name)
+    error_message = "managed_resource_group_name cannot contain uppercase characters."
+  }
+}
 variable "pull_secret" {
   type      = string
   sensitive = true

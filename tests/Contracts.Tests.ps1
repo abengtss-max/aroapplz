@@ -100,6 +100,78 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'host_name\s+=\s+var\.application_gateway_backend_host_name'
         $workload | Should -Not -Match 'application_gateway_preview|preview-not-provisioned'
     }
+    It 'grants the ARO cluster subnets both service endpoints the resource provider requires' {
+        $network = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\network.tf') -Raw
+        foreach ($subnet in @('control_plane', 'worker')) {
+            $block = [regex]::Match($network, "resource `"azurerm_subnet`" `"$subnet`" \{.*?\n\}", 'Singleline').Value
+            $block | Should -Match 'service\s+=\s+"Microsoft\.Storage"'
+            $block | Should -Match 'service\s+=\s+"Microsoft\.ContainerRegistry"'
+        }
+    }
+    It 'attaches a dedicated preconfigured NSG to each cluster subnet with the required operator roles' {
+        $workload | Should -Match 'resource "azurerm_network_security_group" "aro"'
+        $workload | Should -Match ([regex]::Escape('toset(["control-plane", "worker"])'))
+        $workload | Should -Match ([regex]::Escape('azurerm_network_security_group.aro["control-plane"].id'))
+        $workload | Should -Match ([regex]::Escape('azurerm_network_security_group.aro["worker"].id'))
+        $workload | Should -Match 'preconfigured_network_security_group_enabled\s+=\s+true'
+        $workload | Should -Match 'nsg_role_assignments'
+        $workload | Should -Match 'resource "azurerm_role_assignment" "operator_nsg"'
+        $workload | Should -Match 'resource "azurerm_role_assignment" "aro_resource_provider_nsg"'
+        $workload | Should -Not -Match 'checkov:skip=CKV2_AZURE_31'
+        foreach ($operator in @('cloud-controller-manager', 'file-csi-driver', 'machine-api', 'aro-operator')) {
+            $workload | Should -Match ([regex]::Escape($operator))
+        }
+    }
+    It 'pins a deterministic ARO managed resource group name' {
+        $workload | Should -Match 'managed_resource_group_name\s+=\s+local\.managed_resource_group_name'
+        $workload | Should -Match 'coalesce\(var\.managed_resource_group_name, "rg-\$\{var\.cluster_name\}-managed"\)'
+        $workload | Should -Match 'variable "managed_resource_group_name"'
+    }
+    It 'warns about landing-zone policy assignments that block ARO before apply' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match 'function Test-AROPolicyCompatibility'
+        $module | Should -Match "'policy', 'assignment', 'list'"
+        $module | Should -Match '--disable-scope-strict-match'
+        $module | Should -Match "'Deny-PublicPaaSEndpoints'"
+        $module | Should -Match "'MCAPSGovDeployPolicies'"
+        $module | Should -Match 'DoNotEnforce'
+        $module | Should -Match 'az group create -n \$\(\$Config\.managed_resource_group_name\)'
+        $module | Should -Match 'az policy exemption create'
+    }
+    It 'derives the managed resource group name once and reuses it everywhere' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match '\$Config\.managed_resource_group_name = "rg-\$\(\$Config\.cluster_name\)-managed"'
+        $module | Should -Match 'managed_resource_group_name = \$Config\.managed_resource_group_name'
+        $module | Should -Match 'resource_group_name = \$Config\.resource_group_name'
+        $module | Should -Match 'cluster_name = \$Config\.cluster_name'
+        $module | Should -Not -Match 'rg-aro-\$\(\$Config\.service_name\)'
+    }
+    It 'documents Azure Landing Zone deployment guidance' {
+        $page = Join-Path $root 'docs\governance\azure-landing-zone.md'
+        Test-Path $page | Should -BeTrue
+        $guidance = Get-Content $page -Raw
+        $guidance | Should -Match 'Deny-PublicPaaSEndpoints'
+        $guidance | Should -Match 'Enable-DDoS-VNET'
+        $guidance | Should -Match 'rg-aro-<service_name>-<environment_name>-managed'
+        $guidance | Should -Match 'az policy exemption create'
+        $guidance | Should -Match '--managed-by'
+        $guidance | Should -Match 'ClusterResourceGroupAlreadyExists'
+        $guidance | Should -Match 'Why the accelerator does not create the exemption'
+        (Get-Content (Join-Path $root 'mkdocs.yml') -Raw) | Should -Match 'governance/azure-landing-zone\.md'
+    }
+    It 'never creates policy exemptions from workload Terraform' {
+        $workload | Should -Not -Match 'azurerm_(resource_group|subscription|management_group)_policy_exemption'
+    }
+    It 'routes operators to the policy carve-out before the workload apply' {
+        $prerequisites = Get-Content (Join-Path $root 'docs\get-started\prerequisites.md') -Raw
+        $prerequisites | Should -Match 'Deny-PublicPaaSEndpoints'
+        $prerequisites | Should -Match 'before the first workload apply'
+        $prerequisites | Should -Match '\.\./governance/azure-landing-zone\.md#create-the-exemption'
+        $quickstart = Get-Content (Join-Path $root 'docs\get-started\quickstart.md') -Raw
+        $quickstart | Should -Match '## 4\. Clear the policy carve-out'
+        $quickstart | Should -Match '## 5\. Deploy ARO'
+        $quickstart | Should -Match 'az policy exemption create'
+    }
     It 'uses ARO caller and reusable-template workflow pairs' {
         @(Get-ChildItem (Join-Path $root 'ALZ.ARO\templates\.github\workflows') -File).Count | Should -Be 4
         $ci | Should -Match '01 ARO Landing Zone Continuous Integration'

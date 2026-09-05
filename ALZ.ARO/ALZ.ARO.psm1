@@ -84,6 +84,79 @@ function Assert-AROConfig {
         $ip = $null
         if (-not [System.Net.IPAddress]::TryParse([string]$Config.next_hop_ip, [ref]$ip)) { throw 'next_hop_ip must be an IP address.' }
     }
+
+    # Derived once here so the module, the generated tfvars, and the documented
+    # exemption commands always agree on the same names.
+    $Config.cluster_name = "aro-$($Config.service_name)-$($Config.environment_name)"
+    $Config.resource_group_name = "rg-$($Config.service_name)-$($Config.environment_name)-aro"
+    if (-not $Config.ContainsKey('managed_resource_group_name') -or [string]::IsNullOrWhiteSpace([string]$Config.managed_resource_group_name)) {
+        $Config.managed_resource_group_name = "rg-$($Config.cluster_name)-managed"
+    }
+    if ([string]$Config.managed_resource_group_name -cne ([string]$Config.managed_resource_group_name).ToLowerInvariant()) {
+        throw 'managed_resource_group_name cannot contain uppercase characters.'
+    }
+}
+
+# Policy assignments that block ARO cluster creation and cannot be satisfied from
+# workload Terraform. Keys match the assignment name or the assigned (set)
+# definition name, because initiatives report the initiative, not the member.
+$script:AROBlockingPolicyDefinitions = [ordered]@{
+    'Deny-PublicPaaSEndpoints' = 'Denies the public network access the ARO resource provider requires on its managed storage accounts.'
+    'MCAPSGovDeployPolicies'   = 'Sets publicNetworkAccess=Disabled on the ARO managed storage accounts, so the resource provider cannot write bootstrap ignition.'
+    'Enable-DDoS-VNET'         = 'Injects a DDoS plan reference into every virtual network; ARO VNet creation fails when no plan exists.'
+    'Enforce-Subnet-Private'   = 'Can deny the ARO cluster subnets, which require default outbound access.'
+}
+
+function Resolve-AROPolicyReferenceId {
+    param([Parameter(Mandatory)][string]$PolicyDefinitionId)
+
+    if ($PolicyDefinitionId -notmatch '/policySetDefinitions/') { return '' }
+    try {
+        $raw = Invoke-NativeCommand az @(
+            'policy', 'set-definition', 'show',
+            '--id', $PolicyDefinitionId,
+            '--query', "policyDefinitions[?contains(policyDefinitionReferenceId,'torage')].policyDefinitionReferenceId",
+            '--output', 'json'
+        )
+        return (@($raw | ConvertFrom-Json) -join ' ')
+    }
+    catch { return '' }
+}
+
+function Test-AROPolicyCompatibility {
+    param([Parameter(Mandatory)][string]$SubscriptionId)
+
+    try {
+        $raw = Invoke-NativeCommand az @(
+            'policy', 'assignment', 'list',
+            '--scope', "/subscriptions/$SubscriptionId",
+            '--disable-scope-strict-match',
+            '--output', 'json'
+        )
+    }
+    catch {
+        Write-Warning "Could not read policy assignments for subscription '$SubscriptionId'; ARO policy compatibility was not checked. $($_.Exception.Message)"
+        return @()
+    }
+
+    $findings = @()
+    foreach ($assignment in @($raw | ConvertFrom-Json)) {
+        $properties = $assignment.PSObject.Properties
+        if ($properties['enforcementMode'] -and $assignment.enforcementMode -eq 'DoNotEnforce') { continue }
+        if (-not $properties['policyDefinitionId']) { continue }
+        $definitionName = ([string]$assignment.policyDefinitionId -split '/')[-1]
+        $matchKey = @([string]$assignment.name, $definitionName) | Where-Object { $script:AROBlockingPolicyDefinitions.Contains($_) } | Select-Object -First 1
+        if (-not $matchKey) { continue }
+        $findings += [pscustomobject]@{
+            Assignment   = if ($properties['displayName'] -and $assignment.displayName) { [string]$assignment.displayName } else { [string]$assignment.name }
+            AssignmentId = [string]$assignment.id
+            Definition   = $definitionName
+            ReferenceId  = Resolve-AROPolicyReferenceId -PolicyDefinitionId ([string]$assignment.policyDefinitionId)
+            Scope        = [string]$assignment.scope
+            Impact       = [string]$script:AROBlockingPolicyDefinitions[$matchKey]
+        }
+    }
+    return $findings
 }
 
 function Invoke-AROPreflight {
@@ -174,6 +247,23 @@ function Invoke-AROPreflight {
         if ([string]$aroProviderState -ne 'Registered') {
             throw "Workload subscription '$($Config.workload_subscription_id)' is not registered for Microsoft.RedHatOpenShift. Run: az provider register --namespace Microsoft.RedHatOpenShift --subscription $($Config.workload_subscription_id) --wait"
         }
+        $findings = @(Test-AROPolicyCompatibility -SubscriptionId ([string]$Config.workload_subscription_id))
+        if ($findings.Count -gt 0) {
+            $clusterId = "/subscriptions/$($Config.workload_subscription_id)/resourceGroups/$($Config.resource_group_name)/providers/Microsoft.RedHatOpenShift/openShiftClusters/$($Config.cluster_name)"
+            foreach ($finding in $findings) {
+                Write-Warning "Policy '$($finding.Assignment)' is enforced at $($finding.Scope). $($finding.Impact)"
+            }
+            $reference = @($findings.ReferenceId | Where-Object { $_ }) | Select-Object -First 1
+            Write-Host ''
+            Write-Host 'A platform owner must run these before the workload apply:' -ForegroundColor Yellow
+            Write-Host "az group create -n $($Config.managed_resource_group_name) -l $($Config.location) --subscription $($Config.workload_subscription_id) --managed-by `"$clusterId`""
+            foreach ($finding in $findings) {
+                $r = if ($finding.ReferenceId) { " -r $($finding.ReferenceId)" } elseif ($reference) { " -r $reference" } else { '' }
+                Write-Host "az policy exemption create -n aro-$($finding.Definition.ToLowerInvariant()) -g $($Config.managed_resource_group_name) --subscription $($Config.workload_subscription_id) -a `"$($finding.AssignmentId)`" -e Mitigated$r"
+            }
+            Write-Host 'Details: docs/governance/azure-landing-zone.md. This check is not exhaustive.' -ForegroundColor Yellow
+            Write-Host ''
+        }
     }
     if ($Config.deployment_mode -eq 'spoke') {
         [void](Invoke-NativeCommand az @('network','vnet','show','--ids',[string]$Config.hub_vnet_id,'--subscription',[string]$Config.connectivity_subscription_id,'--output','none'))
@@ -220,8 +310,9 @@ function New-BootstrapInput {
         workload_subscription_id = $Config.workload_subscription_id
         connectivity_subscription_id = $Config.connectivity_subscription_id
         location = $Config.location
-        resource_group_name = "rg-$($Config.service_name)-$($Config.environment_name)-aro"
-        cluster_name = "aro-$($Config.service_name)-$($Config.environment_name)"
+        resource_group_name = $Config.resource_group_name
+        cluster_name = $Config.cluster_name
+        managed_resource_group_name = $Config.managed_resource_group_name
         aro_domain = $Config.aro_domain
         aro_version = $Config.aro_version
         aro_vnet_cidr = $Config.aro_vnet_cidr

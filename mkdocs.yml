@@ -35,6 +35,7 @@ nav:
       - Remove workload and bootstrap: operations/cleanup.md
   - Governance:
       - ALZ corporate policy: governance/alz-corp-policy.md
+      - Deploying into an Azure Landing Zone: governance/azure-landing-zone.md
   - Known issues: known-issues.md
   - FAQ: faq.md
   - Contributing: contributing.md

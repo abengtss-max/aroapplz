@@ -80,7 +80,15 @@ Deploy-AROLandingZone -BootstrapAction apply
 
 Enter `Y` at the PowerShell confirmation prompt. This creates the Azure state platform, managed identities, OIDC configuration, and generated GitHub repository. It does **not** deploy ARO automatically.
 
-## 4. Deploy ARO
+## 4. Clear the policy carve-out
+
+The plan in step 3 checks the workload subscription for policy that blocks ARO. If it printed a warning, it also printed the exact `az group create` and `az policy exemption create` commands with your subscription, region, resource group, and policy assignment already filled in.
+
+Have a platform or governance owner run those printed commands now. They must complete **before** the workload apply in step 5, otherwise ARO fails partway through with a generic `InternalServerError`.
+
+If nothing was printed, skip to step 5. Background and the manual discovery steps are in [Deploying into an Azure Landing Zone](../governance/azure-landing-zone.md).
+
+## 5. Deploy ARO
 
 Choose GitHub UI unless command-line dispatch is required.
 

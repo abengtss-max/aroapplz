@@ -1,6 +1,19 @@
+locals {
+  managed_resource_group_name = coalesce(var.managed_resource_group_name, "rg-${var.cluster_name}-managed")
+}
+
 resource "azurerm_role_assignment" "aro_resource_provider_network" {
   provider           = azurerm.workload
   scope              = azurerm_virtual_network.aro.id
+  role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/42f3c60f-e7b1-46d7-ba56-6de681664342"
+  principal_id       = var.aro_resource_provider_object_id
+  principal_type     = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "aro_resource_provider_nsg" {
+  provider           = azurerm.workload
+  for_each           = azurerm_network_security_group.aro
+  scope              = each.value.id
   role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/42f3c60f-e7b1-46d7-ba56-6de681664342"
   principal_id       = var.aro_resource_provider_object_id
   principal_type     = "ServicePrincipal"
@@ -19,14 +32,16 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   }
 
   cluster_profile {
-    domain      = var.aro_domain
-    version     = var.aro_version
-    pull_secret = local.pull_secret
+    domain                      = var.aro_domain
+    version                     = var.aro_version
+    pull_secret                 = local.pull_secret
+    managed_resource_group_name = local.managed_resource_group_name
   }
 
   network_profile {
-    pod_cidr     = var.pod_cidr
-    service_cidr = var.service_cidr
+    pod_cidr                                     = var.pod_cidr
+    service_cidr                                 = var.service_cidr
+    preconfigured_network_security_group_enabled = true
   }
 
   main_profile {
@@ -59,7 +74,11 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
     azurerm_role_assignment.operator_subnet,
     azurerm_role_assignment.operator_vnet,
     azurerm_role_assignment.operator_route_table,
+    azurerm_role_assignment.operator_nsg,
     azurerm_role_assignment.aro_resource_provider_network,
+    azurerm_role_assignment.aro_resource_provider_nsg,
+    azurerm_subnet_network_security_group_association.control_plane,
+    azurerm_subnet_network_security_group_association.worker,
     azurerm_subnet_route_table_association.control_plane,
     azurerm_subnet_route_table_association.worker,
     azurerm_virtual_network_peering.aro_to_hub,

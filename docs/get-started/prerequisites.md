@@ -64,3 +64,10 @@ The hub VNet ID must belong to the configured connectivity subscription. aroappl
 ## Policy and cost review
 
 Before apply, evaluate deny policies, required tags, allowed regions/SKUs, role-assignment restrictions, public network rules, and centralized DNS requirements. Also review current ARO and dependent Azure service pricing. See [ALZ corporate policy](../governance/alz-corp-policy.md) for the implemented state-access trade-off.
+
+!!! warning "Azure Landing Zone policy carve-out"
+    In a default Azure Landing Zone, `Deny-PublicPaaSEndpoints` blocks ARO cluster creation because ARO requires public endpoint reachability on the storage accounts in its own managed resource group. The accelerator cannot fix this from workload Terraform.
+
+    A platform or governance owner must create the policy exemption **before the first workload apply**. Bootstrap does not need it; the workload `apply` that creates the cluster does. The bootstrap preflight warns when a known-blocking assignment is enforced, naming the assignment and the resource group to scope to.
+
+    Commands: [Create the exemption](../governance/azure-landing-zone.md#create-the-exemption).

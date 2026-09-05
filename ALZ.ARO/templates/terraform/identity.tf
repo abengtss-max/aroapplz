@@ -40,12 +40,25 @@ locals {
     image-registry       = "8b32b316-c2f5-4ddf-b05b-83dacd2d08b5"
   }
 
-  route_table_role_assignments = local.is_spoke ? {
+  # Operators that also need the role on an attached NSG or route table.
+  extra_network_role_assignments = {
     cloud-controller-manager = "a1f96423-95ce-4224-ab27-4e3dc72facd4"
     file-csi-driver          = "0d7aedc0-15fd-4a67-a412-efad370c947e"
     machine-api              = "0358943c-7e01-48ba-8889-02cc51d78637"
     aro-operator             = "4436bae4-7702-4c84-919b-c4069ff25ee2"
-  } : {}
+  }
+
+  route_table_role_assignments = local.is_spoke ? local.extra_network_role_assignments : {}
+
+  nsg_role_assignments = merge([
+    for operator, role_id in local.extra_network_role_assignments : {
+      for nsg_key, nsg in azurerm_network_security_group.aro : "${operator}-${nsg_key}" => {
+        operator = operator
+        role_id  = role_id
+        scope    = nsg.id
+      }
+    }
+  ]...)
 }
 
 resource "azurerm_user_assigned_identity" "aro" {
@@ -90,5 +103,14 @@ resource "azurerm_role_assignment" "operator_route_table" {
   scope              = azurerm_route_table.egress[0].id
   role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/${each.value}"
   principal_id       = azurerm_user_assigned_identity.aro[each.key].principal_id
+  principal_type     = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "operator_nsg" {
+  provider           = azurerm.workload
+  for_each           = local.nsg_role_assignments
+  scope              = each.value.scope
+  role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/${each.value.role_id}"
+  principal_id       = azurerm_user_assigned_identity.aro[each.value.operator].principal_id
   principal_type     = "ServicePrincipal"
 }
