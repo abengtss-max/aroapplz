@@ -3,15 +3,16 @@ name: ARO CD Template
 on:
   workflow_call:
     inputs:
-      ref_sha:
-        required: true
-        type: string
       plan_environment:
         required: true
         type: string
       apply_environment:
         required: true
         type: string
+      action:
+        required: false
+        type: string
+        default: apply
       runner_label:
         required: false
         type: string
@@ -27,7 +28,7 @@ on:
 
 jobs:
   plan:
-    name: Plan ARO
+    name: Terraform Plan
     environment: ${{ inputs.plan_environment }}
     runs-on: ${{ inputs.runner_label }}
     defaults:
@@ -39,18 +40,17 @@ jobs:
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      EXPECTED_SHA: ${{ inputs.ref_sha }}
+      EXPECTED_SHA: ${{ github.sha }}
       TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
       TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
       TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref_sha }}
-      - name: Verify immutable SHA
+      - name: Verify action, default branch, and immutable SHA
         shell: bash
         working-directory: .
         run: |
+          test "${{ inputs.action }}" = 'apply' || test "${{ inputs.action }}" = 'destroy'
           test "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}"
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
@@ -64,15 +64,32 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - run: terraform init -input=false
       - run: terraform validate -no-color
-      - run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+      - name: Terraform Plan
+        run: |
+          if [ "${{ inputs.action }}" = 'destroy' ]; then
+            echo '::warning::DESTROY selected — generating a teardown plan.'
+            terraform plan -destroy -input=false -lock-timeout=5m -out=tfplan
+          else
+            terraform plan -input=false -lock-timeout=5m -out=tfplan
+          fi
+      - name: Plan Summary
+        run: |
+          if [ "${{ inputs.action }}" = 'destroy' ]; then
+            echo '## Terraform DESTROY Plan :warning:' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Terraform Apply Plan' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          terraform show tfplan -no-color | tail -30 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: apply-plan-${{ inputs.ref_sha }}
+          name: tfplan-${{ github.run_id }}
           path: ${{ inputs.working_directory }}/tfplan
           retention-days: 1
 
   apply:
-    name: Apply ARO
+    name: Terraform ${{ inputs.action == 'destroy' && 'Destroy' || 'Apply' }}
     needs: plan
     environment: ${{ inputs.apply_environment }}
     runs-on: ${{ inputs.runner_label }}
@@ -85,15 +102,13 @@ jobs:
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      EXPECTED_SHA: ${{ inputs.ref_sha }}
+      EXPECTED_SHA: ${{ github.sha }}
       TF_VAR_pull_secret: ${{ secrets.REDHAT_PULL_SECRET }}
       TF_VAR_application_gateway_ssl_certificate_data: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA }}
       TF_VAR_application_gateway_ssl_certificate_password: ${{ secrets.APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref_sha }}
-      - name: Verify immutable SHA
+      - name: Verify default branch and immutable SHA
         shell: bash
         working-directory: .
         run: |
@@ -111,7 +126,7 @@ jobs:
       - run: terraform init -input=false
       - uses: actions/download-artifact@v4
         with:
-          name: apply-plan-${{ inputs.ref_sha }}
+          name: tfplan-${{ github.run_id }}
           path: ${{ inputs.working_directory }}
-      - name: Apply the exact reviewed plan
+      - name: ${{ inputs.action == 'destroy' && 'Destroy with exact reviewed plan' || 'Apply the exact reviewed plan' }}
         run: terraform apply -input=false -lock-timeout=5m tfplan

@@ -3,10 +3,14 @@ name: 02 ARO Landing Zone Continuous Delivery
 on:
   workflow_dispatch:
     inputs:
-      ref_sha:
-        description: Full commit SHA to plan and apply
+      action:
+        description: "Action: 'apply' to deploy, 'destroy' to teardown"
         required: true
-        type: string
+        type: choice
+        options:
+          - apply
+          - destroy
+        default: apply
 
 permissions:
   contents: read
@@ -20,9 +24,9 @@ jobs:
   CD:
     uses: ./.github/workflows/cd-template.yml
     with:
-      ref_sha: ${{ inputs.ref_sha }}
       plan_environment: plan
       apply_environment: apply
+      action: ${{ inputs.action }}
       runner_label: ubuntu-latest
       working_directory: terraform
     secrets: inherit

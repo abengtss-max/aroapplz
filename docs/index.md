@@ -84,7 +84,7 @@ Add protected runtime secrets, use pull-request CI, then manually plan and apply
 
 - Hardened Azure Storage for workload state
 - Formatting, validation, Checkov, and Pester checks
-- Manual-only guarded destroy workflow
+- Manual `apply`/`destroy` selector in the `02` continuous-delivery workflow
 - Dependabot update proposals
 </div>
 </div>

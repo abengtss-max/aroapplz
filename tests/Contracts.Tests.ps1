@@ -2,7 +2,6 @@ BeforeAll {
     $root = Split-Path -Parent $PSScriptRoot
     $workload = Get-ChildItem (Join-Path $root 'ALZ.ARO\templates\terraform') -Filter *.tf | Get-Content -Raw | Out-String
     $bootstrap = Get-ChildItem (Join-Path $root 'bootstrap') -Filter *.tf -Recurse | Get-Content -Raw | Out-String
-    $destroy = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\destroy.yml') -Raw
     $ci = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\ci.yml') -Raw
     $ciTemplate = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\ci-template.yml') -Raw
     $cd = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\cd.yml') -Raw
@@ -66,18 +65,23 @@ Describe 'Architecture contracts' {
         $workload | Should -Not -Match 'application_gateway_preview|preview-not-provisioned'
     }
     It 'uses ARO caller and reusable-template workflow pairs' {
+        @(Get-ChildItem (Join-Path $root 'ALZ.ARO\templates\.github\workflows') -File).Count | Should -Be 4
         $ci | Should -Match '01 ARO Landing Zone Continuous Integration'
         $ci | Should -Match 'uses: \.\/\.github\/workflows\/ci-template\.yml'
         $ciTemplate | Should -Match 'workflow_call:'
         $cd | Should -Match '02 ARO Landing Zone Continuous Delivery'
         $cd | Should -Match 'uses: \.\/\.github\/workflows\/cd-template\.yml'
+        $cd | Should -Match 'options:\s+\- apply\s+\- destroy'
         $cdTemplate | Should -Match 'workflow_call:'
         $cdTemplate | Should -Match 'Apply the exact reviewed plan'
         $cdTemplate | Should -Match 'terraform apply -input=false -lock-timeout=5m tfplan'
+        $cdTemplate | Should -Match 'terraform plan -destroy.*-out=tfplan'
     }
-    It 'guards manual destruction with confirmation, branch and SHA checks' {
-        $destroy | Should -Match "confirmation"
-        $destroy | Should -Match "default_branch"
-        $destroy | Should -Match "expected_sha"
+    It 'guards destruction in the CD pair with action, branch, SHA, and exact-plan checks' {
+        $cd | Should -Match 'workflow_dispatch:'
+        $cdTemplate | Should -Match "inputs.action.*= 'destroy'"
+        $cdTemplate | Should -Match 'github\.event\.repository\.default_branch'
+        $cdTemplate | Should -Match 'git rev-parse HEAD'
+        Test-Path (Join-Path $root 'ALZ.ARO\templates\.github\workflows\destroy.yml') | Should -BeFalse
     }
 }

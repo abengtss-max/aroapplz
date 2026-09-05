@@ -35,7 +35,7 @@ The bootstrap state starts locally. It is not the same state as the generated wo
 
 ## Stage 2: generated workload delivery
 
-The generated private repository contains Terraform for the workload and GitHub workflows for CI, apply, and destroy.
+The generated private repository contains Terraform for the workload and four GitHub workflow files: the `01` CI caller, `02` CD caller, CI template, and CD template.
 
 ### Pull-request CI
 
@@ -43,11 +43,11 @@ CI checks formatting, initializes and validates Terraform, runs Checkov, and cre
 
 ### Manual CD
 
-CD accepts a full immutable commit SHA, checks out that source, creates a Terraform plan, and uploads the plan artifact. The protected `apply` environment then gates applying that exact artifact. The plan and apply identities are distinct.
+CD is manually dispatched from the default branch with an `apply` or `destroy` action. It verifies the selected commit, creates a Terraform plan, and uploads the plan artifact. The protected `apply` environment then gates applying that exact artifact when the GitHub plan supports reviewers. The plan and apply identities are distinct.
 
-### Guarded destroy
+### Guarded destroy through CD
 
-Destroy is manual-only. Its workflow requires the default branch, the current full SHA, the confirmation word `DELETE`, and protected-environment approval.
+Destroy is manual-only. Dispatch **02 ARO Landing Zone Continuous Delivery** from the default branch and select `destroy`. The CD template verifies the branch and selected commit, creates a destroy plan, and applies that exact artifact after protected-environment approval when supported.
 
 !!! note "No automatic workload apply"
     Bootstrap apply creates the delivery platform and repository. It does not dispatch or apply workload Terraform.

@@ -45,12 +45,11 @@ OIDC plan/apply identities have no Azure client secret. Review their federated c
 
 ## Destroy
 
-Use the generated manual destroy workflow only after dependency and retention review. It requires:
+Use the generated **02 ARO Landing Zone Continuous Delivery** workflow only after dependency and retention review. Select `destroy`; it requires:
 
 - execution from the default branch;
-- the current full commit SHA;
-- the exact confirmation word `DELETE`;
-- protected-environment approval.
+- the workflow-selected commit to match the checked-out commit;
+- protected-environment approval when supported by the GitHub owner plan.
 
 Destroy workload resources before separately retiring bootstrap resources. Confirm whether state, logs, DNS, identity records, and platform-side peering records require retention or separate cleanup.
 
