@@ -22,7 +22,7 @@ Run a bootstrap and workload plan in the target policy context. A valid Terrafor
 Bootstrap hardens workload state storage with Microsoft Entra authorization, disabled shared-key authentication, disabled anonymous access, TLS, infrastructure encryption, ZRS, versioning, change feed, and deletion retention. Its data endpoint remains publicly reachable because the generated design uses GitHub-hosted runners.
 
 !!! warning "Private endpoint policy"
-    A policy that denies public state endpoints requires a changed runner/network design. Provide a self-hosted runner with private network reachability and adapt/test the bootstrap; do not create a private endpoint while retaining runners that cannot reach it.
+    A policy that denies public state endpoints requires a changed runner and network design. Supply a runner with private network reachability and adapt and test the bootstrap; do not create a private endpoint while retaining runners that cannot reach it.
 
 ## Spoke governance
 

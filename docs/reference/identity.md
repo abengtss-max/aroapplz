@@ -8,7 +8,7 @@ Bootstrap authenticates interactively to Azure through the operator's current Az
 
 The bootstrap is responsible for creating the private workload repository, protected environments, Actions variables, generated source files, and workflows. Use a dedicated fine-grained PAT for the configured resource owner with **All repositories** and repository permissions **Administration**, **Actions**, **Contents**, **Environments**, **Variables**, and **Workflows** set to **Read and write**. The token owner must be permitted to create, administer, and later delete repositories for the configured user or organization. Organization approval and PAT policies still apply. Remove the environment variable after bootstrap; it is not used by generated workload workflows, which authenticate to Azure through OIDC.
 
-Self-hosted runner registration is external to the accelerator. No runner registration token is requested, accepted as Terraform input, or stored in accelerator state.
+Runner registration is external to the accelerator. No runner registration token is requested, accepted as Terraform input, or stored in accelerator state.
 
 The operator must be authorized to create the configured Azure, Entra, RBAC, repository, and environment resources.
 
@@ -40,7 +40,7 @@ Terraform assigns each identity its ARO built-in role at the narrowest supported
 
 ## State access boundary
 
-Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. If Azure Policy disables public network access, an independently managed self-hosted runner needs private endpoint and DNS connectivity to the blob endpoint.
+Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. If Azure Policy disables public network access, the runner you supply needs private endpoint and DNS connectivity to the blob endpoint.
 
 ## Rotation and review
 

@@ -21,7 +21,7 @@ Copy one to the ignored `config/local.json` before editing.
 | `github_organization` | Yes | GitHub organization or owner for the generated repository |
 | `github_repository` | Yes | Name of the new private workload repository |
 | `apply_approvers` | Yes | Non-empty array of GitHub usernames used for private-repository environment protection when the owner has GitHub Enterprise |
-| `runner_label` | No | Existing runner selected by generated CI/CD callers: `ubuntu-latest` (default) or `self-hosted`. The accelerator does not provision runners |
+| `runner_label` | No | Label of a GitHub runner your organization already operates, used by the generated CI/CD callers. Defaults to `ubuntu-latest`. The accelerator never provisions runners |
 
 Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner plan and writes it only to generated bootstrap input. It is not a user-supplied configuration field. Non-Enterprise owners receive a warning because GitHub does not support the reviewer rule for their generated private repository.
 
@@ -99,7 +99,7 @@ Configure the generated GitHub `plan` and `apply` environments with optional `RE
 
 Pipeline and ARO authentication use user-assigned managed identities. The bootstrap discovers the Microsoft-managed ARO resource-provider object ID and writes it to generated Terraform configuration; no operator-managed identity credential belongs in JSON.
 
-When `runner_label` is `self-hosted`, provision and register the runner independently before bootstrap. See the [self-hosted runner guide](../operations/self-hosted-runner.md).
+The GitHub runner is an external prerequisite. Provision and register it before bootstrap, and make sure it can reach the Terraform state endpoint.
 
 ## Command parameters
 

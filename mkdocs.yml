@@ -31,7 +31,6 @@ nav:
   - Operations:
       - Day-2 operations: operations/day2.md
       - Validation: operations/validation.md
-      - Azure self-hosted runner: operations/self-hosted-runner.md
       - Remove workload and bootstrap: operations/cleanup.md
   - Governance:
       - ALZ corporate policy: governance/alz-corp-policy.md

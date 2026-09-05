@@ -90,4 +90,4 @@ Private ARO ingress does not make an application publicly reachable. The current
 
 ## State storage connectivity
 
-The generated workload state storage endpoint remains publicly reachable so GitHub-hosted runners can connect, but anonymous access and shared-key authentication are disabled. Microsoft Entra authorization is used. An organization that mandates private state endpoints must provide self-hosted runner connectivity and adapt the platform design.
+The generated workload state storage endpoint remains publicly reachable so GitHub-hosted runners can connect, but anonymous access and shared-key authentication are disabled. Microsoft Entra authorization is used. An organization that mandates private state endpoints must supply a runner with private network reachability to that endpoint and adapt the platform design.

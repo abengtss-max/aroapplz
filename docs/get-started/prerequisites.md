@@ -50,6 +50,12 @@ ARO versions vary by region. The module calls `az aro get-versions --location` a
 - Confirm the owner permits private-repository creation, GitHub environments, Actions, and OIDC. Required reviewers on private repositories require GitHub Enterprise; other plans retain the manual immutable-SHA and exact-plan safeguards but cannot add the reviewer protection rule.
 - Plan how to add the runtime secrets to both generated `plan` and `apply` environments after bootstrap.
 
+## GitHub runner
+
+A GitHub Actions runner is an external prerequisite, exactly like the hub. Provide either a GitHub-hosted runner or one your organization operates, and set `runner_label` to its label. The accelerator selects a runner; it never creates, registers, or removes one, and bootstrap destroy leaves it untouched.
+
+The runner must reach the Terraform state storage endpoint. Where policy denies public network access on storage, a GitHub-hosted runner cannot reach the backend, so the runner needs private network connectivity to it.
+
 ## Extra requirements for `spoke`
 
 `spoke` requires an existing hub VNet and an existing firewall or NVA next hop. Obtain:

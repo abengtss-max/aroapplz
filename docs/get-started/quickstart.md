@@ -19,10 +19,10 @@ notepad ./config/local.json
 
 Replace every placeholder in `config/local.json`. Keep secrets out of this file. For a first deployment, use `standalone` and leave `aro_version` empty so the module selects an available version.
 
-Use `"runner_label": "self-hosted"` only when an independently managed repository runner is already available. The accelerator does not create or destroy runner infrastructure.
+Set `runner_label` to the GitHub runner your organization already operates. The accelerator selects a runner; it never creates, registers, or removes one.
 
 !!! warning "After clean-slate recreation"
-  Deleting and recreating bootstrap invalidates a repository-scoped runner registration and disconnects any private endpoint targeting the deleted state storage account. After bootstrap succeeds, re-register the independent runner with the new repository, recreate its state-storage private endpoint when used, and confirm the runner is online before deploying ARO.
+    Deleting and recreating bootstrap invalidates any repository-scoped runner registration and disconnects a private endpoint that targeted the deleted state storage account, even though the storage account name is deterministic. Restore that connectivity and confirm the runner is online before deploying ARO.
 
 ## 2. Sign in
 
@@ -128,7 +128,7 @@ When `REDHAT_PULL_SECRET` is required, add it to both generated GitHub environme
 
 ## Destroy everything safely
 
-Destroy in this order: **workload first, bootstrap second**. Keep this clone, `config/local.json`, and local Terraform state until all verification succeeds. An independent self-hosted runner is outside accelerator ownership and is not removed.
+Destroy in this order: **workload first, bootstrap second**. Keep this clone, `config/local.json`, and local Terraform state until all verification succeeds. Your runner is outside accelerator ownership and is not removed.
 
 ### 1. Destroy the ARO workload
 
