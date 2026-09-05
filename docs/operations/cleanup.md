@@ -91,27 +91,13 @@ Confirm that the plan targets only the intended:
 
 ## 5. Apply the exact bootstrap destroy plan
 
-Run the destroy action without `-WhatIf`:
+Apply the saved plan directly so Terraform cannot generate a different plan after review:
 
 ```powershell
-Deploy-AROLandingZone `
-  -InputConfigPath ./config/local.json `
-  -BootstrapAction destroy
+terraform -chdir=bootstrap/alz/github apply bootstrap-destroy.tfplan
 ```
 
-With the existing default configuration file, this can be shortened to:
-
-```powershell
-Deploy-AROLandingZone -BootstrapAction destroy
-```
-
-PowerShell displays the GitHub repository and bootstrap resource-group targets. Confirm only after matching them to `config/local.json`. The module generates a fresh destroy plan and applies that exact plan; `-AutoApprove` is intentionally not recommended for interactive cleanup.
-
-Expected completion message:
-
-```text
-Bootstrap destroy completed. The generated GitHub repository and Azure bootstrap resources were removed.
-```
+Terraform displays the saved plan and asks for confirmation. Enter `yes` only after matching the repository and bootstrap resource-group targets to `config/local.json`. Do not use `-auto-approve` for interactive cleanup.
 
 ## 6. Verify and remove local artifacts
 
