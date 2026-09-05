@@ -127,6 +127,14 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'coalesce\(var\.managed_resource_group_name, "rg-\$\{var\.cluster_name\}-managed"\)'
         $workload | Should -Match 'variable "managed_resource_group_name"'
     }
+    It 'forces UserDefinedRouting egress whenever a hub route table is attached' {
+        $workload | Should -Match 'outbound_type\s+=\s+local\.is_spoke \? "UserDefinedRouting" : "Loadbalancer"'
+        $workload | Should -Match 'visibility = "Private"'
+    }
+    It 'enforces the documented ARO subnet and pod CIDR minimums' {
+        $workload | Should -Match 'ARO control-plane and worker subnets must be /27 or larger'
+        $workload | Should -Match 'pod_cidr must be /18 or larger'
+    }
     It 'warns about landing-zone policy assignments that block ARO before apply' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match 'function Test-AROPolicyCompatibility'

@@ -25,11 +25,27 @@ variable "aro_version" {
   }
 }
 variable "aro_vnet_cidr" { type = string }
-variable "control_plane_subnet_cidr" { type = string }
-variable "worker_subnet_cidr" { type = string }
+variable "control_plane_subnet_cidr" {
+  type = string
+  validation {
+    condition     = tonumber(split("/", var.control_plane_subnet_cidr)[1]) <= 27
+    error_message = "ARO control-plane and worker subnets must be /27 or larger."
+  }
+}
+variable "worker_subnet_cidr" {
+  type = string
+  validation {
+    condition     = tonumber(split("/", var.worker_subnet_cidr)[1]) <= 27
+    error_message = "ARO control-plane and worker subnets must be /27 or larger."
+  }
+}
 variable "pod_cidr" {
   type    = string
   default = "10.128.0.0/14"
+  validation {
+    condition     = tonumber(split("/", var.pod_cidr)[1]) <= 18
+    error_message = "pod_cidr must be /18 or larger; each node consumes a /23."
+  }
 }
 variable "service_cidr" {
   type    = string

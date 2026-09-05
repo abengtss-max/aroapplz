@@ -39,8 +39,11 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   }
 
   network_profile {
-    pod_cidr                                     = var.pod_cidr
-    service_cidr                                 = var.service_cidr
+    pod_cidr     = var.pod_cidr
+    service_cidr = var.service_cidr
+    # UserDefinedRouting is required when egress is forced to the hub NVA, and it
+    # stops ARO provisioning a public outbound IP. It requires a private cluster.
+    outbound_type                                = local.is_spoke ? "UserDefinedRouting" : "Loadbalancer"
     preconfigured_network_security_group_enabled = true
   }
 
