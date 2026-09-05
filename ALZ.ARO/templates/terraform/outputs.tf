@@ -10,10 +10,10 @@ output "ingress_status" {
   )
 }
 output "application_gateway_public_ip" {
-  value = var.ingress_mode == "application_gateway" ? azurerm_public_ip.application_gateway[0].ip_address : null
+  value = local.application_gateway_enabled ? module.application_gateway[0].public_ip_address : null
 }
 output "application_gateway_fqdn" {
-  value = var.ingress_mode == "application_gateway" ? azurerm_public_ip.application_gateway[0].fqdn : null
+  value = local.application_gateway_enabled ? module.application_gateway[0].fqdn : null
 }
 
 output "log_analytics_workspace_id" {

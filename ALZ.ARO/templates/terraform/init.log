@@ -1,20 +1,15 @@
 Initializing the backend...
 
-Upgrading modules...
-- monitoring in modules\monitoring
-- supporting in modules\supporting
+Initializing modules...
+- application_gateway in modules\application-gateway
 
 Initializing provider plugins...
 - terraform.io/builtin/terraform is built in to Terraform
-- Finding hashicorp/azurerm versions matching "~> 5.2"...
-- Finding hashicorp/random versions matching "~> 3.6"...
+- Reusing previous version of hashicorp/azurerm from the dependency lock file
+- Reusing previous version of hashicorp/random from the dependency lock file
 - Using previously-installed hashicorp/azurerm v5.4.0
-- Installing hashicorp/random v3.9.0...
-- Installed hashicorp/random v3.9.0 (signed by HashiCorp)
+- Using previously-installed hashicorp/random v3.9.0
 
-Terraform has made some changes to the provider dependency selections recorded
-in the .terraform.lock.hcl file. Review those changes and commit them to your
-version control system if they represent changes you intended to make.
 
 Terraform has been successfully initialized!
 

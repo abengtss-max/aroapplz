@@ -65,7 +65,7 @@ function Assert-AROConfig {
     }
     if ($Config.deployment_mode -notin @('standalone','spoke')) { throw "deployment_mode must be exactly 'standalone' or 'spoke'." }
     if (-not $Config.ContainsKey('runner_label') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_label)) { $Config.runner_label = 'ubuntu-latest' }
-    if ($Config.runner_label -notin @('ubuntu-latest','self-hosted')) { throw "runner_label must be exactly 'ubuntu-latest' or 'self-hosted'." }
+    if ($Config.runner_label -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$') { throw 'runner_label must be a GitHub runner label: alphanumerics, dot, dash or underscore, starting with an alphanumeric.' }
     if ($Config.github_organization -notmatch '^[A-Za-z0-9_.-]+$' -or $Config.github_repository -notmatch '^[A-Za-z0-9_.-]+$') { throw 'GitHub owner and repository names contain unsupported characters.' }
     if ($Config.ingress_mode -notin @('none','front_door','application_gateway')) { throw "ingress_mode must be exactly 'none', 'front_door', or 'application_gateway'." }
     if ($Config.ingress_mode -eq 'application_gateway') {
@@ -364,9 +364,9 @@ function New-BootstrapInput {
         $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
         $files[$relative] = Get-Content -LiteralPath $_.FullName -Raw
     }
-    if ($Config.runner_label -eq 'self-hosted') {
+    if ($Config.runner_label -ne 'ubuntu-latest') {
         foreach ($workflow in @('.github/workflows/ci.yml', '.github/workflows/cd.yml')) {
-            $files[$workflow] = $files[$workflow] -replace 'runner_label: ubuntu-latest', 'runner_label: self-hosted'
+            $files[$workflow] = $files[$workflow] -replace 'runner_label: ubuntu-latest', "runner_label: $($Config.runner_label)"
         }
     }
     $workload = [ordered]@{

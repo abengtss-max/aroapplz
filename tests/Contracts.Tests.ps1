@@ -1,6 +1,6 @@
 BeforeAll {
     $root = Split-Path -Parent $PSScriptRoot
-    $workload = Get-ChildItem (Join-Path $root 'ALZ.ARO\templates\terraform') -Filter *.tf | Get-Content -Raw | Out-String
+    $workload = Get-ChildItem (Join-Path $root 'ALZ.ARO\templates\terraform') -Filter *.tf -Recurse | Get-Content -Raw | Out-String
     $bootstrap = Get-ChildItem (Join-Path $root 'bootstrap') -Filter *.tf -Recurse | Get-Content -Raw | Out-String
     $ci = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\ci.yml') -Raw
     $ciTemplate = Get-Content (Join-Path $root 'ALZ.ARO\templates\.github\workflows\ci-template.yml') -Raw
@@ -33,10 +33,10 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Match 'resource "azapi_resource" "state_container"'
         $bootstrap | Should -Not -Match 'resource "azurerm_storage_account" "state"'
     }
-    It 'selects but does not provision a self-hosted runner' {
+    It 'selects any customer runner label but never provisions a runner' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
-        $module | Should -Match "runner_label -notin @\('ubuntu-latest','self-hosted'\)"
-        $module | Should -Match "runner_label: self-hosted"
+        $module | Should -Match 'runner_label -notmatch'
+        $module | Should -Match 'runner_label: \$\(\$Config\.runner_label\)'
         $forbiddenRunnerPattern = ('azurerm_' + 'linux_virtual_machine|actions/runners/' + 'registration-token|runner_registration_token|github_runner_token')
         $bootstrap | Should -Not -Match $forbiddenRunnerPattern
     }
@@ -95,9 +95,9 @@ Describe 'Architecture contracts' {
         $module | Should -Match "notmatch '\\\.\(tfplan\|log\)\$'"
     }
     It 'provisions Application Gateway rather than a preview contract' {
-        $workload | Should -Match 'resource "azurerm_application_gateway" "aro"'
+        $workload | Should -Match 'resource "azurerm_application_gateway" "this"'
         $workload | Should -Match 'WAF_v2'
-        $workload | Should -Match 'host_name\s+=\s+var\.application_gateway_backend_host_name'
+        $workload | Should -Match 'host_name\s+=\s+var\.backend_host_name'
         $workload | Should -Not -Match 'application_gateway_preview|preview-not-provisioned'
     }
     It 'grants the ARO cluster subnets both service endpoints the resource provider requires' {
