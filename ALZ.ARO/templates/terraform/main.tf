@@ -1,3 +1,9 @@
+locals {
+  pull_secret                                  = try(trimspace(var.pull_secret), "") == "" ? null : var.pull_secret
+  application_gateway_ssl_certificate_data     = try(trimspace(var.application_gateway_ssl_certificate_data), "") == "" ? null : var.application_gateway_ssl_certificate_data
+  application_gateway_ssl_certificate_password = try(var.application_gateway_ssl_certificate_password, "") == "" ? null : var.application_gateway_ssl_certificate_password
+}
+
 resource "terraform_data" "input_contract" {
   input = var.deployment_mode
   lifecycle {
@@ -22,11 +28,11 @@ resource "terraform_data" "input_contract" {
     }
     precondition {
       condition = (
-        length(trimspace(coalesce(var.application_gateway_ssl_certificate_data, ""))) == 0 &&
-        length(coalesce(var.application_gateway_ssl_certificate_password, "")) == 0
+        local.application_gateway_ssl_certificate_data == null &&
+        local.application_gateway_ssl_certificate_password == null
         ) || (
-        length(trimspace(coalesce(var.application_gateway_ssl_certificate_data, ""))) > 0 &&
-        length(coalesce(var.application_gateway_ssl_certificate_password, "")) > 0
+        local.application_gateway_ssl_certificate_data != null &&
+        local.application_gateway_ssl_certificate_password != null
       )
       error_message = "Application Gateway PFX data and password must either both be set or both be omitted."
     }

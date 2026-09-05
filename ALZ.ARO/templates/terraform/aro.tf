@@ -21,7 +21,7 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
   cluster_profile {
     domain      = var.aro_domain
     version     = var.aro_version
-    pull_secret = var.pull_secret
+    pull_secret = local.pull_secret
   }
 
   network_profile {

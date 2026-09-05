@@ -99,8 +99,8 @@ resource "azurerm_application_gateway" "aro" {
 
   ssl_certificate {
     name     = "frontend-pfx"
-    data     = var.application_gateway_ssl_certificate_data
-    password = var.application_gateway_ssl_certificate_password
+    data     = local.application_gateway_ssl_certificate_data
+    password = local.application_gateway_ssl_certificate_password
   }
 
   http_listener {
@@ -122,7 +122,7 @@ resource "azurerm_application_gateway" "aro" {
 
   lifecycle {
     precondition {
-      condition     = length(trimspace(coalesce(var.application_gateway_ssl_certificate_data, ""))) > 0 && length(coalesce(var.application_gateway_ssl_certificate_password, "")) > 0
+      condition     = local.application_gateway_ssl_certificate_data != null && local.application_gateway_ssl_certificate_password != null
       error_message = "Application Gateway requires a base64-encoded PFX and password supplied through the protected runtime inputs."
     }
   }
