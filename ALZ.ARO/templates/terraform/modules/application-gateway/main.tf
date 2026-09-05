@@ -83,9 +83,9 @@ resource "azurerm_application_gateway" "this" {
 
   # OpenShift serves *.apps routes with a self-signed certificate, which the gateway rejects until its root is trusted.
   dynamic "trusted_root_certificate" {
-    for_each = var.backend_root_certificate == null ? [] : [1]
+    for_each = var.backend_root_certificate == null ? toset([]) : toset(["aro-ingress-root"])
     content {
-      name = "aro-ingress-root"
+      name = trusted_root_certificate.value
       data = var.backend_root_certificate
     }
   }

@@ -196,6 +196,14 @@ Describe 'Architecture contracts' {
         $frontDoor | Should -Not -Match 'frontend_ip_configuration\[[0-9]+\]'
         $frontDoor | Should -Match 'configuration\.private_ip_address == var\.ingress_ip_address'
     }
+    It 'uses typed collections for conditional dynamic blocks' {
+        # A bare tuple such as [] : [1] passes validate and only fails during plan.
+        $terraformRoot = Join-Path $root 'ALZ.ARO\templates\terraform'
+        $files = Get-ChildItem $terraformRoot -Filter *.tf -Recurse | Where-Object { $_.FullName -notmatch '\\\.terraform\\' }
+        foreach ($file in $files) {
+            (Get-Content $file.FullName -Raw) | Should -Not -Match 'for_each\s*=\s*[^\r\n]*\?\s*\[\s*\]' -Because "$($file.Name) must use toset() rather than a bare tuple"
+        }
+    }
     It 'derives the managed resource group name once and reuses it everywhere' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$Config\.managed_resource_group_name = "rg-\$\(\$Config\.cluster_name\)-managed"'
