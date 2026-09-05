@@ -282,8 +282,8 @@ function Deploy-AROLandingZone {
         [void](Invoke-NativeCommand terraform @('validate','-no-color'))
         $planName = if ($BootstrapAction -eq 'destroy') { 'bootstrap-destroy.tfplan' } else { 'bootstrap.tfplan' }
         $planPath = Join-Path $bootstrapRoot $planName
-        $planArguments = @('plan','-input=false','-out', $planPath)
-        if ($BootstrapAction -eq 'destroy') { $planArguments = @('plan','-destroy','-input=false','-out', $planPath) }
+        $planArguments = @('plan','-input=false',"-out=$planPath")
+        if ($BootstrapAction -eq 'destroy') { $planArguments = @('plan','-destroy','-input=false',"-out=$planPath") }
         [void](Invoke-NativeCommand terraform $planArguments)
         Write-Host "Bootstrap plan created: $planPath"
         if ($BootstrapAction -eq 'apply') {
