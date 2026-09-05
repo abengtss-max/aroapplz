@@ -88,17 +88,19 @@ resource "azurerm_cdn_frontdoor_origin_group" "aro" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "aro" {
-  provider                       = azurerm.workload
-  name                           = "aro-origin"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.aro.id
-  enabled                        = true
-  host_name                      = var.backend_host_name
-  origin_host_header             = var.backend_host_name
-  http_port                      = 80
-  https_port                     = 443
-  priority                       = 1
-  weight                         = 500
-  certificate_name_check_enabled = var.certificate_name_check_enabled
+  provider                      = azurerm.workload
+  name                          = "aro-origin"
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.aro.id
+  enabled                       = true
+  host_name                     = var.backend_host_name
+  origin_host_header            = var.backend_host_name
+  http_port                     = 80
+  https_port                    = 443
+  priority                      = 1
+  weight                        = 500
+  # Azure rejects a private link origin unless certificate name checking is on, so the
+  # OpenShift ingress must present a publicly trusted certificate for backend_host_name.
+  certificate_name_check_enabled = true
 
   private_link {
     request_message        = "Front Door origin for ${var.cluster_name}"

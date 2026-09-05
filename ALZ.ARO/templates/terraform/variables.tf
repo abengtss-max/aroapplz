@@ -235,8 +235,4 @@ variable "front_door_backend_host_name" {
   type        = string
   default     = ""
 }
-variable "front_door_certificate_name_check_enabled" {
-  description = "Require a publicly trusted certificate on the OpenShift ingress. Disable only for a self-signed default certificate."
-  type        = bool
-  default     = true
-}
+

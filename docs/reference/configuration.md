@@ -41,7 +41,6 @@ For `standalone`, the empty connectivity subscription value is omitted from gene
 | `private_endpoint_subnet_cidr` | Supporting services only | Subnet holding private endpoints for the registry and vault. Required unless both are disabled |
 | `front_door_subnet_cidr` | Front Door only | Subnet holding the Private Link Service NAT addresses |
 | `front_door_backend_host_name` | Front Door only | OpenShift application hostname used as the Front Door origin |
-| `front_door_certificate_name_check_enabled` | No | Require a publicly trusted certificate on the origin. Default `true` |
 | `container_registry_enabled` | No | Create a private Container Registry. Default `true` |
 | `key_vault_enabled` | No | Create a private Key Vault. Default `true` |
 | `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |
@@ -140,6 +139,7 @@ The frontend of the internal load balancer is selected by matching the cluster i
 
 A managed WAF policy runs in `front_door_waf_mode` (`Prevention` by default) with the Microsoft default rule set and bot manager rule set, associated with the endpoint through a security policy. A route publishes `/*` over HTTPS with HTTP redirect.
 
-!!! warning "Origin certificate"
-    `front_door_certificate_name_check_enabled` defaults to `true`, which requires a publicly trusted certificate on the OpenShift ingress matching `front_door_backend_host_name`. OpenShift serves `*.apps` with a self-signed certificate by default, so either install a trusted certificate or set the value to `false` and accept that Front Door will not validate the origin certificate name.
+!!! warning "The origin certificate is a prerequisite, not an option"
+    Azure rejects a Private Link origin unless certificate name checking is enabled, so Front Door mode requires the OpenShift ingress to already present a **publicly trusted** certificate matching `front_door_backend_host_name`. OpenShift serves `*.apps` with a self-signed certificate by default, so replace the ingress certificate before selecting this mode. The origin reports as unhealthy until you do.
+
 

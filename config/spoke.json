@@ -21,7 +21,6 @@
   "private_endpoint_subnet_cidr": "10.40.8.0/24",
   "front_door_subnet_cidr": "",
   "front_door_backend_host_name": "",
-  "front_door_certificate_name_check_enabled": true,
   "hub_vnet_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-connectivity/providers/Microsoft.Network/virtualNetworks/vnet-hub",
   "next_hop_ip": "10.0.1.4",
   "ingress_mode": "none",

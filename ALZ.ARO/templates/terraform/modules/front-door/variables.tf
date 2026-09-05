@@ -22,9 +22,6 @@ variable "backend_host_name" {
   description = "OpenShift application hostname presented to the origin."
   type        = string
 }
-variable "certificate_name_check_enabled" {
-  type = bool
-}
 variable "sku" {
   type = string
 }
