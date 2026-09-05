@@ -58,7 +58,8 @@ Describe 'Architecture contracts' {
         $quickstart | Should -Match '`repo`'
         $quickstart | Should -Match '`workflow`'
         $quickstart | Should -Match '`read:org`'
-        $quickstart | Should -Match 'No `admin:org`, `delete_repo`'
+        $quickstart | Should -Match '`delete_repo`'
+        $quickstart | Should -Match 'token used here must include `delete_repo`'
     }
     It 'provides a plan-first bootstrap destroy path and clean-slate documentation' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
