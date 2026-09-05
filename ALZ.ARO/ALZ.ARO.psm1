@@ -263,8 +263,23 @@ function Deploy-AROLandingZone {
 
     $repositoryRoot = Split-Path -Parent $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($OutputConfigPath)) { $OutputConfigPath = Join-Path $repositoryRoot 'config\local.json' }
-    $configPath = if ($InputConfigPath) { (Resolve-Path -LiteralPath $InputConfigPath).Path } else { $OutputConfigPath }
-    $config = if ($InputConfigPath) { Read-AROConfig $configPath } else { New-AROConfigWizard $configPath }
+    if ($InputConfigPath) {
+        $configPath = (Resolve-Path -LiteralPath $InputConfigPath).Path
+        $config = Read-AROConfig $configPath
+    }
+    elseif ($GenerateConfig) {
+        $configPath = $OutputConfigPath
+        $config = New-AROConfigWizard $configPath
+    }
+    elseif (Test-Path -LiteralPath $OutputConfigPath -PathType Leaf) {
+        $configPath = (Resolve-Path -LiteralPath $OutputConfigPath).Path
+        $config = Read-AROConfig $configPath
+        Write-Host "Using existing configuration: $configPath"
+    }
+    else {
+        $configPath = $OutputConfigPath
+        $config = New-AROConfigWizard $configPath
+    }
     Assert-AROConfig $config
     if ($GenerateConfig) { Write-Host "Configuration written to $configPath"; return }
 

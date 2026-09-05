@@ -75,6 +75,12 @@ Deploy-AROLandingZone `
 terraform -chdir=bootstrap/alz/github show bootstrap-destroy.tfplan
 ```
 
+When `config/local.json` exists in the accelerator clone, the equivalent shorter command is:
+
+```powershell
+Deploy-AROLandingZone -BootstrapAction destroy -WhatIf
+```
+
 Confirm that the plan targets only the intended:
 
 - generated GitHub workload repository;
@@ -91,6 +97,12 @@ Run the destroy action without `-WhatIf`:
 Deploy-AROLandingZone `
   -InputConfigPath ./config/local.json `
   -BootstrapAction destroy
+```
+
+With the existing default configuration file, this can be shortened to:
+
+```powershell
+Deploy-AROLandingZone -BootstrapAction destroy
 ```
 
 PowerShell displays the GitHub repository and bootstrap resource-group targets. Confirm only after matching them to `config/local.json`. The module generates a fresh destroy plan and applies that exact plan; `-AutoApprove` is intentionally not recommended for interactive cleanup.

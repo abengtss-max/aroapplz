@@ -71,6 +71,11 @@ Describe 'Architecture contracts' {
         $cleanup | Should -Match '-WhatIf'
         $cleanup | Should -Match 'Only remove local state after both Terraform destroy and verification succeed'
     }
+    It 'reuses existing local configuration when no input path is supplied' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match 'Test-Path -LiteralPath \$OutputConfigPath -PathType Leaf'
+        $module | Should -Match 'Using existing configuration:'
+    }
     It 'excludes Terraform provider caches from generated repository files' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match "notmatch '\(\^\|/\)\\\.terraform/'"
