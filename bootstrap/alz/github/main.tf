@@ -51,3 +51,22 @@ module "github" {
   backend_storage_account_name        = module.azure.state_storage_account_name
   backend_container_name              = module.azure.state_container_name
 }
+
+resource "azurerm_federated_identity_credential" "github" {
+  for_each                  = toset(["plan", "apply"])
+  name                      = "github-${each.key}"
+  user_assigned_identity_id = module.azure.identity_ids[each.key]
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${var.github_organization}@${var.github_owner_id}/${var.github_repository}@${module.github.repository_id}:environment:${each.key}"
+}
+
+moved {
+  from = module.azure.azurerm_federated_identity_credential.github["plan"]
+  to   = azurerm_federated_identity_credential.github["plan"]
+}
+
+moved {
+  from = module.azure.azurerm_federated_identity_credential.github["apply"]
+  to   = azurerm_federated_identity_credential.github["apply"]
+}

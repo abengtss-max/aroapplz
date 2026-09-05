@@ -20,6 +20,7 @@ Describe 'Architecture contracts' {
     }
     It 'uses GitHub environment OIDC on managed identities' {
         $bootstrap | Should -Match 'azurerm_federated_identity_credential'
+        $bootstrap | Should -Match 'github_owner_id.*github_repository.*module\.github\.repository_id'
         $bootstrap | Should -Not -Match 'azuread_application_password|azuread_service_principal_password'
     }
     It 'creates state through the ARM plane with shared keys disabled' {

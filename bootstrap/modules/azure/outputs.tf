@@ -7,6 +7,9 @@ output "client_ids" {
 output "principal_ids" {
   value = { for key, identity in azurerm_user_assigned_identity.pipeline : key => identity.principal_id }
 }
+output "identity_ids" {
+  value = { for key, identity in azurerm_user_assigned_identity.pipeline : key => identity.id }
+}
 output "aro_resource_provider_object_id" {
   value = data.azuread_service_principal.aro_resource_provider.object_id
 }

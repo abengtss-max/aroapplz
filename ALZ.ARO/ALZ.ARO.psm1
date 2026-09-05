@@ -130,6 +130,7 @@ function Invoke-AROPreflight {
         throw "GitHub owner '$($Config.github_organization)' is unavailable to the supplied credential."
     }
     $githubOwner = $githubOwnerResponse.Content | ConvertFrom-Json
+    $Config.github_owner_id = [string]$githubOwner.id
     if ($githubOwner.type -eq 'User' -and $githubUser.login -ne $githubOwner.login) {
         throw "A personal repository can only be bootstrapped under the authenticated GitHub user '$($githubUser.login)', not '$($githubOwner.login)'."
     }
@@ -236,6 +237,7 @@ function New-BootstrapInput {
         environment_name = $Config.environment_name
         github_organization = $Config.github_organization
         github_repository = $Config.github_repository
+        github_owner_id = [string]$Config.github_owner_id
         apply_approvers = @($Config.apply_approvers)
         apply_environment_reviewers_enabled = [bool]$Config.apply_environment_reviewers_enabled
         repository_files = $files

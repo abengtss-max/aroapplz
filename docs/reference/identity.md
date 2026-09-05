@@ -21,7 +21,7 @@ Bootstrap creates two user-assigned managed identities:
 | Plan | `Reader` | Workload subscription | `Storage Blob Data Contributor` on workload state container |
 | Apply | `Contributor` and `Role Based Access Control Administrator` | Workload subscription | `Storage Blob Data Contributor` on workload state container |
 
-Each managed identity receives one federated credential scoped to its GitHub environment. Subjects follow `repo:<owner>/<repo>:environment:plan` and `repo:<owner>/<repo>:environment:apply`.
+Each managed identity receives one federated credential scoped to its GitHub environment. For repositories created after July 15, 2026, subjects use GitHub's immutable owner and repository IDs: `repo:<owner>@<owner-id>/<repo>@<repo-id>:environment:plan` and the corresponding `apply` subject. Bootstrap obtains both IDs rather than treating names as the complete trust boundary.
 
 Generated workflows set `ARM_USE_OIDC=true` and use the environment-specific client ID. Bootstrap creates no Azure application password/client secret for these GitHub identities.
 

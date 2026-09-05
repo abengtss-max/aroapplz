@@ -77,15 +77,6 @@ resource "azurerm_user_assigned_identity" "pipeline" {
   tags                = var.tags
 }
 
-resource "azurerm_federated_identity_credential" "github" {
-  for_each                  = local.pipelines
-  name                      = "github-${each.key}"
-  user_assigned_identity_id = azurerm_user_assigned_identity.pipeline[each.key].id
-  audience                  = ["api://AzureADTokenExchange"]
-  issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:${var.github_organization}/${var.github_repository}:environment:${each.key}"
-}
-
 resource "azurerm_role_assignment" "plan_reader" {
   scope                = data.azurerm_subscription.workload.id
   role_definition_name = "Reader"
