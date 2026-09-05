@@ -393,6 +393,7 @@ function New-BootstrapInput {
         private_endpoint_subnet_cidr = if ($Config.ContainsKey('private_endpoint_subnet_cidr')) { $Config.private_endpoint_subnet_cidr } else { '' }
         front_door_subnet_cidr = if ($Config.ContainsKey('front_door_subnet_cidr')) { $Config.front_door_subnet_cidr } else { '' }
         front_door_backend_host_name = if ($Config.ContainsKey('front_door_backend_host_name')) { $Config.front_door_backend_host_name } else { '' }
+        front_door_certificate_name_check_enabled = if ($Config.ContainsKey('front_door_certificate_name_check_enabled')) { [bool]$Config.front_door_certificate_name_check_enabled } else { $true }
         container_registry_enabled = if ($Config.ContainsKey('container_registry_enabled')) { [bool]$Config.container_registry_enabled } else { $true }
         key_vault_enabled = if ($Config.ContainsKey('key_vault_enabled')) { [bool]$Config.key_vault_enabled } else { $true }
     }
