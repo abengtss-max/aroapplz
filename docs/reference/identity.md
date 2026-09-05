@@ -8,7 +8,7 @@ Bootstrap authenticates interactively to Azure through the operator's current Az
 
 The bootstrap is responsible for creating the private workload repository, protected environments, Actions variables, generated source files, and workflows. A classic PAT requires `repo` and `workflow`; add `read:org` when the configured owner is an organization. It does not require `admin:org`, `delete_repo`, package scopes, or Azure permissions for creation/update. The token owner must be permitted to create and administer repositories for the configured user or organization. Organization SAML SSO and PAT policies still apply. Remove the environment variable after bootstrap; it is not used by generated workload workflows, which authenticate to Azure through OIDC.
 
-When the Azure runner is enabled, bootstrap requests a short-lived repository runner registration token after infrastructure apply and supplies it through Azure VM Run Command. It is never a Terraform input or state value. The resulting runner is scoped only to the generated repository.
+Self-hosted runner registration is external to the accelerator. No runner registration token is requested, accepted as Terraform input, or stored in accelerator state.
 
 The operator must be authorized to create the configured Azure, Entra, RBAC, repository, and environment resources.
 
@@ -40,7 +40,7 @@ Terraform assigns each identity its ARO built-in role at the narrowest supported
 
 ## State access boundary
 
-Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. When the Azure runner is enabled, it reaches the blob endpoint through a bootstrap-managed private endpoint and private DNS zone even when Azure Policy disables public network access.
+Workload Terraform state uses Azure Storage with Microsoft Entra data-plane authorization. Anonymous blob access and shared-key authentication are disabled by the bootstrap design. If Azure Policy disables public network access, an independently managed self-hosted runner needs private endpoint and DNS connectivity to the blob endpoint.
 
 ## Rotation and review
 

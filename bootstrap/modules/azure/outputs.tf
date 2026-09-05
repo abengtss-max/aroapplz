@@ -10,10 +10,3 @@ output "principal_ids" {
 output "aro_resource_provider_object_id" {
   value = data.azuread_service_principal.aro_resource_provider.object_id
 }
-output "runner" {
-  value = var.use_self_hosted_runner ? {
-    resource_group_name = azurerm_resource_group.state.name
-    vm_name             = azurerm_linux_virtual_machine.runner[0].name
-    public_ip_address   = azurerm_public_ip.runner[0].ip_address
-  } : null
-}

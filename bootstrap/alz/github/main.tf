@@ -13,9 +13,6 @@ module "azure" {
   workload_subscription_id  = var.workload_subscription_id
   github_organization       = var.github_organization
   github_repository         = var.github_repository
-  use_self_hosted_runner    = var.use_self_hosted_runner
-  runner_vm_size            = var.runner_vm_size
-  runner_ssh_public_key     = var.runner_ssh_public_key
   names                     = module.resource_names.names
   tags                      = var.tags
 }
