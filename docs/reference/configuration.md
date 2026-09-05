@@ -38,6 +38,10 @@ For `standalone`, the empty connectivity subscription value is omitted from gene
 | `aro_vnet_cidr` | Yes | CIDR for the new ARO VNet |
 | `control_plane_subnet_cidr` | Yes | CIDR for the new control-plane subnet |
 | `worker_subnet_cidr` | Yes | CIDR for the new worker subnet |
+| `private_endpoint_subnet_cidr` | Supporting services only | Subnet holding private endpoints for the registry and vault. Required unless both are disabled |
+| `front_door_subnet_cidr` | Front Door only | Subnet holding the Private Link Service NAT addresses |
+| `container_registry_enabled` | No | Create a private Container Registry. Default `true` |
+| `key_vault_enabled` | No | Create a private Key Vault. Default `true` |
 | `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |
 | `application_gateway_backend_host_name` | Application Gateway only | Existing OpenShift application hostname used by the HTTPS health probe |
 
@@ -116,3 +120,12 @@ The GitHub runner is an external prerequisite. Provision and register it before 
 ## Workload outputs
 
 The generated Terraform exports cluster ID/name, ARO VNet ID, both ARO subnet IDs, console URL, ingress status, and conditional Application Gateway public IP and FQDN.
+
+## Supporting services
+
+The landing zone creates a Container Registry and a Key Vault that are reachable only through private endpoints in `private_endpoint_subnet_cidr`. Both have `publicNetworkAccess` disabled, a `Deny` default network rule, and a private DNS zone linked to the ARO VNet. The registry uses the Premium SKU because private endpoints require it, and admin credentials are disabled in favour of Microsoft Entra authentication. Set `container_registry_enabled` or `key_vault_enabled` to `false` to opt out.
+
+A Log Analytics workspace is created for the landing zone unless `log_analytics_workspace_id` names an existing one. Ingress diagnostics are sent to it.
+
+!!! note "Azure Verified Modules"
+    AVM is the preferred source for these resources, but every candidate AVM module currently constrains `azurerm` to 4.x while this accelerator targets 5.x. They are therefore declared natively, in modules that mirror the AVM boundaries, and can be swapped when AVM supports the 5.x provider.

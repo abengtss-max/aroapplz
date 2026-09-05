@@ -71,6 +71,26 @@ resource "azurerm_subnet_network_security_group_association" "worker" {
   network_security_group_id = azurerm_network_security_group.aro["worker"].id
 }
 
+resource "azurerm_subnet" "private_endpoints" {
+  provider             = azurerm.workload
+  count                = local.supporting_services_enabled ? 1 : 0
+  name                 = "snet-private-endpoints"
+  resource_group_name  = azurerm_resource_group.aro.name
+  virtual_network_name = azurerm_virtual_network.aro.name
+  address_prefixes     = [var.private_endpoint_subnet_cidr]
+}
+
+# Private Link Service NAT IPs cannot be allocated while private link service network policies are enabled.
+resource "azurerm_subnet" "front_door" {
+  provider                                      = azurerm.workload
+  count                                         = local.front_door_enabled ? 1 : 0
+  name                                          = "snet-front-door"
+  resource_group_name                           = azurerm_resource_group.aro.name
+  virtual_network_name                          = azurerm_virtual_network.aro.name
+  address_prefixes                              = [var.front_door_subnet_cidr]
+  private_link_service_network_policies_enabled = false
+}
+
 resource "azurerm_subnet" "application_gateway" {
   provider             = azurerm.workload
   count                = var.ingress_mode == "application_gateway" ? 1 : 0

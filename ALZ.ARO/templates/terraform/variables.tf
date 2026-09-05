@@ -171,3 +171,61 @@ variable "tags" {
   type    = map(string)
   default = { managed_by = "terraform", accelerator = "ALZ.ARO" }
 }
+
+variable "private_endpoint_subnet_cidr" {
+  description = "Subnet CIDR for private endpoints to supporting services. Required when a supporting service is enabled."
+  type        = string
+  default     = ""
+}
+variable "front_door_subnet_cidr" {
+  description = "Subnet CIDR holding the Private Link Service NAT IPs. Required when ingress_mode is front_door."
+  type        = string
+  default     = ""
+}
+variable "container_registry_enabled" {
+  description = "Create an Azure Container Registry reachable only through a private endpoint."
+  type        = bool
+  default     = true
+}
+variable "key_vault_enabled" {
+  description = "Create a Key Vault reachable only through a private endpoint."
+  type        = bool
+  default     = true
+}
+variable "container_registry_sku" {
+  type    = string
+  default = "Premium"
+  validation {
+    condition     = var.container_registry_sku == "Premium"
+    error_message = "container_registry_sku must be Premium, because private endpoints require it."
+  }
+}
+variable "log_analytics_workspace_id" {
+  description = "Existing Log Analytics workspace to send diagnostics to. Leave empty to create one."
+  type        = string
+  default     = ""
+}
+variable "log_analytics_retention_days" {
+  type    = number
+  default = 30
+  validation {
+    condition     = var.log_analytics_retention_days >= 30 && var.log_analytics_retention_days <= 730
+    error_message = "log_analytics_retention_days must be between 30 and 730."
+  }
+}
+variable "front_door_sku" {
+  type    = string
+  default = "Premium_AzureFrontDoor"
+  validation {
+    condition     = var.front_door_sku == "Premium_AzureFrontDoor"
+    error_message = "front_door_sku must be Premium_AzureFrontDoor, because Private Link origins require the premium tier."
+  }
+}
+variable "front_door_waf_mode" {
+  type    = string
+  default = "Prevention"
+  validation {
+    condition     = contains(["Detection", "Prevention"], var.front_door_waf_mode)
+    error_message = "front_door_waf_mode must be Detection or Prevention."
+  }
+}

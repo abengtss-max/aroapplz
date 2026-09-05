@@ -15,3 +15,15 @@ output "application_gateway_public_ip" {
 output "application_gateway_fqdn" {
   value = var.ingress_mode == "application_gateway" ? azurerm_public_ip.application_gateway[0].fqdn : null
 }
+
+output "log_analytics_workspace_id" {
+  value = local.log_analytics_workspace_id
+}
+
+output "container_registry_login_server" {
+  value = local.supporting_services_enabled ? module.supporting[0].container_registry_login_server : null
+}
+
+output "key_vault_uri" {
+  value = local.supporting_services_enabled ? module.supporting[0].key_vault_uri : null
+}

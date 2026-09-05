@@ -73,6 +73,14 @@ function Assert-AROConfig {
             if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "application_gateway mode requires '$name'." }
         }
     }
+    if ($Config.ingress_mode -eq 'front_door' -and [string]::IsNullOrWhiteSpace([string]$Config.front_door_subnet_cidr)) {
+        throw "front_door mode requires 'front_door_subnet_cidr' for the Private Link Service NAT addresses."
+    }
+    $containerRegistryEnabled = -not $Config.ContainsKey('container_registry_enabled') -or [bool]$Config.container_registry_enabled
+    $keyVaultEnabled = -not $Config.ContainsKey('key_vault_enabled') -or [bool]$Config.key_vault_enabled
+    if (($containerRegistryEnabled -or $keyVaultEnabled) -and [string]::IsNullOrWhiteSpace([string]$Config.private_endpoint_subnet_cidr)) {
+        throw "container_registry_enabled or key_vault_enabled requires 'private_endpoint_subnet_cidr'."
+    }
     if (-not $Config.ContainsKey('apply_approvers') -or @($Config.apply_approvers).Count -eq 0) { throw 'At least one GitHub apply approver is required to protect apply and destroy.' }
     if ($Config.deployment_mode -eq 'spoke') {
         foreach ($name in @('connectivity_subscription_id','hub_vnet_id','next_hop_ip')) {
@@ -380,6 +388,10 @@ function New-BootstrapInput {
         ingress_mode = $Config.ingress_mode
         application_gateway_subnet_cidr = if ($Config.ContainsKey('application_gateway_subnet_cidr')) { $Config.application_gateway_subnet_cidr } else { '' }
         application_gateway_backend_host_name = if ($Config.ContainsKey('application_gateway_backend_host_name')) { $Config.application_gateway_backend_host_name } else { '' }
+        private_endpoint_subnet_cidr = if ($Config.ContainsKey('private_endpoint_subnet_cidr')) { $Config.private_endpoint_subnet_cidr } else { '' }
+        front_door_subnet_cidr = if ($Config.ContainsKey('front_door_subnet_cidr')) { $Config.front_door_subnet_cidr } else { '' }
+        container_registry_enabled = if ($Config.ContainsKey('container_registry_enabled')) { [bool]$Config.container_registry_enabled } else { $true }
+        key_vault_enabled = if ($Config.ContainsKey('key_vault_enabled')) { [bool]$Config.key_vault_enabled } else { $true }
     }
     $files['terraform/aro.auto.tfvars.json'] = $workload | ConvertTo-Json -Depth 10
     $input = [ordered]@{

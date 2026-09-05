@@ -166,6 +166,25 @@ Describe 'Architecture contracts' {
         $module | Should -Match 'Get-AROManagementGroupAncestorScope -SubscriptionId \$SubscriptionId'
         $module | Should -Match 'Management Group Reader'
     }
+    It 'builds supporting services and monitoring as reusable modules' {
+        $terraformRoot = Join-Path $root 'ALZ.ARO\templates\terraform'
+        foreach ($name in @('supporting', 'monitoring')) {
+            foreach ($file in @('main.tf', 'variables.tf', 'outputs.tf')) {
+                Join-Path $terraformRoot "modules\$name\$file" | Should -Exist
+            }
+        }
+        $supporting = Get-Content (Join-Path $terraformRoot 'modules\supporting\main.tf') -Raw
+        $supporting | Should -Match 'azurerm_container_registry'
+        $supporting | Should -Match 'azurerm_key_vault'
+        $supporting | Should -Match 'azurerm_private_endpoint'
+        $supporting | Should -Match 'azurerm_private_dns_zone'
+    }
+    It 'keeps registry and vault reachable only through a private endpoint' {
+        $supporting = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\modules\supporting\main.tf') -Raw
+        ([regex]::Matches($supporting, 'public_network_access_enabled\s*=\s*false')).Count | Should -Be 2
+        $supporting | Should -Match 'default_action\s*=\s*"Deny"'
+        $supporting | Should -Match 'admin_enabled\s*=\s*false'
+    }
     It 'derives the managed resource group name once and reuses it everywhere' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match '\$Config\.managed_resource_group_name = "rg-\$\(\$Config\.cluster_name\)-managed"'

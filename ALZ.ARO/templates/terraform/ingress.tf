@@ -137,23 +137,12 @@ resource "azurerm_application_gateway" "aro" {
   }
 }
 
-resource "azurerm_log_analytics_workspace" "application_gateway" {
-  provider            = azurerm.workload
-  count               = local.application_gateway_enabled ? 1 : 0
-  name                = "law-agw-${var.cluster_name}"
-  location            = azurerm_resource_group.aro.location
-  resource_group_name = azurerm_resource_group.aro.name
-  sku                 = "PerGB2018"
-  retention_in_days   = 30
-  tags                = var.tags
-}
-
 resource "azurerm_monitor_diagnostic_setting" "application_gateway" {
   provider                   = azurerm.workload
   count                      = local.application_gateway_enabled ? 1 : 0
   name                       = "send-to-log-analytics"
   target_resource_id         = azurerm_application_gateway.aro[0].id
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.application_gateway[0].id
+  log_analytics_workspace_id = local.log_analytics_workspace_id
 
   enabled_log { category = "ApplicationGatewayAccessLog" }
   enabled_log { category = "ApplicationGatewayPerformanceLog" }
