@@ -229,3 +229,14 @@ variable "front_door_waf_mode" {
     error_message = "front_door_waf_mode must be Detection or Prevention."
   }
 }
+
+variable "front_door_backend_host_name" {
+  description = "OpenShift application hostname used as the Front Door origin. Required when ingress_mode is front_door."
+  type        = string
+  default     = ""
+}
+variable "front_door_certificate_name_check_enabled" {
+  description = "Require a publicly trusted certificate on the OpenShift ingress. Disable only for a self-signed default certificate."
+  type        = bool
+  default     = true
+}

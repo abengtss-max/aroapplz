@@ -73,8 +73,10 @@ function Assert-AROConfig {
             if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "application_gateway mode requires '$name'." }
         }
     }
-    if ($Config.ingress_mode -eq 'front_door' -and [string]::IsNullOrWhiteSpace([string]$Config.front_door_subnet_cidr)) {
-        throw "front_door mode requires 'front_door_subnet_cidr' for the Private Link Service NAT addresses."
+    if ($Config.ingress_mode -eq 'front_door') {
+        foreach ($name in @('front_door_subnet_cidr','front_door_backend_host_name')) {
+            if ([string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "front_door mode requires '$name'." }
+        }
     }
     $containerRegistryEnabled = -not $Config.ContainsKey('container_registry_enabled') -or [bool]$Config.container_registry_enabled
     $keyVaultEnabled = -not $Config.ContainsKey('key_vault_enabled') -or [bool]$Config.key_vault_enabled
@@ -390,6 +392,7 @@ function New-BootstrapInput {
         application_gateway_backend_host_name = if ($Config.ContainsKey('application_gateway_backend_host_name')) { $Config.application_gateway_backend_host_name } else { '' }
         private_endpoint_subnet_cidr = if ($Config.ContainsKey('private_endpoint_subnet_cidr')) { $Config.private_endpoint_subnet_cidr } else { '' }
         front_door_subnet_cidr = if ($Config.ContainsKey('front_door_subnet_cidr')) { $Config.front_door_subnet_cidr } else { '' }
+        front_door_backend_host_name = if ($Config.ContainsKey('front_door_backend_host_name')) { $Config.front_door_backend_host_name } else { '' }
         container_registry_enabled = if ($Config.ContainsKey('container_registry_enabled')) { [bool]$Config.container_registry_enabled } else { $true }
         key_vault_enabled = if ($Config.ContainsKey('key_vault_enabled')) { [bool]$Config.key_vault_enabled } else { $true }
     }

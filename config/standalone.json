@@ -20,6 +20,7 @@
   "worker_subnet_cidr": "10.40.4.0/22",
   "private_endpoint_subnet_cidr": "10.40.8.0/24",
   "front_door_subnet_cidr": "",
+  "front_door_backend_host_name": "",
   "hub_vnet_id": "",
   "next_hop_ip": "",
   "ingress_mode": "none",

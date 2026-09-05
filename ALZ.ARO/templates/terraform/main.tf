@@ -49,6 +49,10 @@ resource "terraform_data" "input_contract" {
       condition     = var.ingress_mode != "front_door" || var.front_door_subnet_cidr != ""
       error_message = "front_door_subnet_cidr is required when ingress_mode is front_door."
     }
+    precondition {
+      condition     = var.ingress_mode != "front_door" || var.front_door_backend_host_name != ""
+      error_message = "front_door_backend_host_name is required when ingress_mode is front_door."
+    }
   }
 }
 

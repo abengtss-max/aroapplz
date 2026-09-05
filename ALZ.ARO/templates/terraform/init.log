@@ -1,14 +1,14 @@
 Initializing the backend...
 
 Initializing modules...
-- application_gateway in modules\application-gateway
+- front_door in modules\front-door
 
 Initializing provider plugins...
 - terraform.io/builtin/terraform is built in to Terraform
-- Reusing previous version of hashicorp/azurerm from the dependency lock file
 - Reusing previous version of hashicorp/random from the dependency lock file
-- Using previously-installed hashicorp/azurerm v5.4.0
+- Reusing previous version of hashicorp/azurerm from the dependency lock file
 - Using previously-installed hashicorp/random v3.9.0
+- Using previously-installed hashicorp/azurerm v5.4.0
 
 
 Terraform has been successfully initialized!

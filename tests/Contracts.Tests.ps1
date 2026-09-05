@@ -146,7 +146,7 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'disk_encryption_set_id\s+=\s+var\.disk_encryption_set_id'
     }
     It 'does not attempt ARO resource diagnostic settings, which the platform does not expose' {
-        $workload | Should -Not -Match 'azurerm_monitor_diagnostic_setting" "aro"'
+        $workload | Should -Not -Match 'target_resource_id\s*=\s*azurerm_redhat_openshift_cluster'
     }
     It 'warns about landing-zone policy assignments that block ARO before apply' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
@@ -184,6 +184,17 @@ Describe 'Architecture contracts' {
         ([regex]::Matches($supporting, 'public_network_access_enabled\s*=\s*false')).Count | Should -Be 2
         $supporting | Should -Match 'default_action\s*=\s*"Deny"'
         $supporting | Should -Match 'admin_enabled\s*=\s*false'
+    }
+    It 'publishes a private cluster through Front Door with a route and a WAF' {
+        $frontDoor = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\modules\front-door\main.tf') -Raw
+        $frontDoor | Should -Match 'azurerm_private_link_service'
+        $frontDoor | Should -Match 'azurerm_cdn_frontdoor_route'
+        $frontDoor | Should -Match 'azurerm_cdn_frontdoor_firewall_policy'
+        $frontDoor | Should -Match 'azurerm_cdn_frontdoor_security_policy'
+        $frontDoor | Should -Match 'Premium_AzureFrontDoor|var\.sku'
+        # Frontend ordering is not a contract, so the ingress address selects the frontend.
+        $frontDoor | Should -Not -Match 'frontend_ip_configuration\[[0-9]+\]'
+        $frontDoor | Should -Match 'configuration\.private_ip_address == var\.ingress_ip_address'
     }
     It 'derives the managed resource group name once and reuses it everywhere' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw

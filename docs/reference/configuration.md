@@ -40,6 +40,7 @@ For `standalone`, the empty connectivity subscription value is omitted from gene
 | `worker_subnet_cidr` | Yes | CIDR for the new worker subnet |
 | `private_endpoint_subnet_cidr` | Supporting services only | Subnet holding private endpoints for the registry and vault. Required unless both are disabled |
 | `front_door_subnet_cidr` | Front Door only | Subnet holding the Private Link Service NAT addresses |
+| `front_door_backend_host_name` | Front Door only | OpenShift application hostname used as the Front Door origin |
 | `container_registry_enabled` | No | Create a private Container Registry. Default `true` |
 | `key_vault_enabled` | No | Create a private Key Vault. Default `true` |
 | `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |
@@ -129,3 +130,14 @@ A Log Analytics workspace is created for the landing zone unless `log_analytics_
 
 !!! note "Azure Verified Modules"
     AVM is the preferred source for these resources, but every candidate AVM module currently constrains `azurerm` to 4.x while this accelerator targets 5.x. They are therefore declared natively, in modules that mirror the AVM boundaries, and can be swapped when AVM supports the 5.x provider.
+
+## Front Door ingress
+
+`ingress_mode = "front_door"` publishes the private cluster without giving it a public address. Terraform creates a Private Link Service over the cluster internal load balancer, with its NAT addresses in `front_door_subnet_cidr`, and a Premium Front Door profile whose origin reaches the cluster through that service. Premium is required because Private Link origins do not exist in the standard tier.
+
+The frontend of the internal load balancer is selected by matching the cluster ingress address rather than by position, because frontend ordering is not a documented contract.
+
+A managed WAF policy runs in `front_door_waf_mode` (`Prevention` by default) with the Microsoft default rule set and bot manager rule set, associated with the endpoint through a security policy. A route publishes `/*` over HTTPS with HTTP redirect.
+
+!!! warning "Origin certificate"
+    `front_door_certificate_name_check_enabled` defaults to `true`, which requires a publicly trusted certificate on the OpenShift ingress matching `front_door_backend_host_name`. OpenShift serves `*.apps` with a self-signed certificate by default, so either install a trusted certificate or set the value to `false` and accept that Front Door will not validate the origin certificate name.
