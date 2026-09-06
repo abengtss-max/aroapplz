@@ -269,6 +269,13 @@ function Invoke-AROPreflight {
         if ([string]::IsNullOrWhiteSpace($runnerToken)) {
             throw 'self_hosted_runner_enabled requires GITHUB_RUNNER_TOKEN, or GITHUB_TOKEN, to be a token the runners can exchange for a registration token. It is read from the environment and never written to disk.'
         }
+        # The runner image only exchanges a personal access token for a
+        # registration token. Any other credential is passed straight to the
+        # runner as though it already were a registration token, so the
+        # containers start and then fail to register with nothing to show for it.
+        if (-not ($runnerToken.StartsWith('ghp_') -or $runnerToken.StartsWith('github_pat_'))) {
+            throw 'The runner registration token must be a GitHub personal access token, starting with ghp_ or github_pat_. A gh CLI OAuth token or a GitHub Actions token cannot be exchanged for a runner registration token, and the runners would start but never register. Set GITHUB_RUNNER_TOKEN to a fine-grained PAT with Administration: Read and write on the generated repository.'
+        }
         $env:TF_VAR_github_runner_token = $runnerToken
     }
 

@@ -78,6 +78,10 @@ Describe 'Architecture contracts' {
         $module | Should -Match '\$env:TF_VAR_github_runner_token\s*=\s*\$runnerToken'
         $module | Should -Match '\$env:GITHUB_RUNNER_TOKEN'
         $module | Should -Not -Match 'github_runner_token\s*=\s*\$Config'
+        # Only a personal access token can be exchanged for a registration
+        # token, so anything else must be rejected before the runners deploy.
+        $module | Should -Match "StartsWith\('ghp_'\)"
+        $module | Should -Match "StartsWith\('github_pat_'\)"
         $runnerVars = Get-Content (Join-Path $root 'bootstrap\modules\runner\variables.tf') -Raw
         $runnerVars | Should -Match 'variable "github_runner_token"[\s\S]{0,120}sensitive\s*=\s*true'
     }
