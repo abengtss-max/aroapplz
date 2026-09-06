@@ -2,3 +2,21 @@ compact: true
 framework:
   - terraform
 quiet: true
+skip-check:
+  # ACR content trust (Docker Content Trust / Notary v1) was retired by Microsoft
+  # and the trust_policy argument no longer exists in the azurerm provider, so
+  # this control cannot be expressed here. Sign images with Notation and verify
+  # them at admission time instead.
+  - CKV_AZURE_164
+  # Geo-replication is a multi-region concern. This landing zone deploys a single
+  # region, so replicating the registry would add cost without adding resilience.
+  # Enable it deliberately when a second region is introduced.
+  - CKV_AZURE_165
+  # The quarantine policy is still in preview and holds every pushed image until
+  # an external scanner marks it verified. Enabling it without that scanner wired
+  # up would break all image pulls, including the cluster's own.
+  - CKV_AZURE_166
+  # False positive. A private endpoint for the key vault is declared in
+  # modules/supporting as azurerm_private_endpoint.key_vault. The graph check
+  # does not follow the count-indexed reference azurerm_key_vault.this[0].id.
+  - CKV2_AZURE_32

@@ -80,6 +80,26 @@ resource "azurerm_subnet" "private_endpoints" {
   address_prefixes     = [var.private_endpoint_subnet_cidr]
 }
 
+# Private endpoints only ever accept traffic that originates inside the virtual
+# network. The default security rules already permit VirtualNetwork inbound and
+# deny Internet inbound, so no custom rules are required; the group is attached
+# so the subnet is governed and auditable.
+resource "azurerm_network_security_group" "private_endpoints" {
+  provider            = azurerm.workload
+  count               = local.supporting_services_enabled ? 1 : 0
+  name                = "nsg-pe-${var.cluster_name}"
+  location            = azurerm_resource_group.aro.location
+  resource_group_name = azurerm_resource_group.aro.name
+  tags                = var.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "private_endpoints" {
+  provider                  = azurerm.workload
+  count                     = local.supporting_services_enabled ? 1 : 0
+  subnet_id                 = azurerm_subnet.private_endpoints[0].id
+  network_security_group_id = azurerm_network_security_group.private_endpoints[0].id
+}
+
 # Private Link Service NAT IPs cannot be allocated while private link service network policies are enabled.
 resource "azurerm_subnet" "front_door" {
   provider                                      = azurerm.workload
@@ -89,6 +109,26 @@ resource "azurerm_subnet" "front_door" {
   virtual_network_name                          = azurerm_virtual_network.aro.name
   address_prefixes                              = [var.front_door_subnet_cidr]
   private_link_service_network_policies_enabled = false
+}
+
+# The subnet only hosts the Private Link Service NAT addresses that Front Door
+# connects to over the Microsoft backbone. Traffic delivered through the private
+# link service is not evaluated against these rules, so the default set is left
+# in place and the group is attached for governance and auditability.
+resource "azurerm_network_security_group" "front_door" {
+  provider            = azurerm.workload
+  count               = local.front_door_enabled ? 1 : 0
+  name                = "nsg-afd-${var.cluster_name}"
+  location            = azurerm_resource_group.aro.location
+  resource_group_name = azurerm_resource_group.aro.name
+  tags                = var.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "front_door" {
+  provider                  = azurerm.workload
+  count                     = local.front_door_enabled ? 1 : 0
+  subnet_id                 = azurerm_subnet.front_door[0].id
+  network_security_group_id = azurerm_network_security_group.front_door[0].id
 }
 
 resource "azurerm_subnet" "application_gateway" {

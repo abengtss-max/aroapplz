@@ -62,7 +62,21 @@ resource "azurerm_container_registry" "this" {
   sku                           = var.container_registry_sku
   admin_enabled                 = false
   public_network_access_enabled = false
-  tags                          = var.tags
+
+  # The SKU is constrained to Premium, so the following are always available.
+  # Spread replicas across availability zones in the primary region.
+  zone_redundancy_enabled = true
+
+  # Serve blobs from a registry-specific data endpoint instead of a shared
+  # wildcard storage FQDN, so private DNS and firewall rules can be scoped to
+  # this registry alone.
+  data_endpoint_enabled = true
+
+  # Untagged manifests are unreferenced layers left behind by repeated pushes to
+  # the same tag. Purge them after a week so they cannot accumulate silently.
+  retention_policy_in_days = 7
+
+  tags = var.tags
 }
 
 resource "azurerm_private_endpoint" "registry" {
