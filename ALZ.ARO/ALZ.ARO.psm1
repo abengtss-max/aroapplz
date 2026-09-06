@@ -117,6 +117,14 @@ function Assert-AROConfig {
     if ([string]$Config.managed_resource_group_name -cne ([string]$Config.managed_resource_group_name).ToLowerInvariant()) {
         throw 'managed_resource_group_name cannot contain uppercase characters.'
     }
+
+    # Matches the bootstrap resource_names module so the workload can peer to the runner network.
+    if ($Config.ContainsKey('self_hosted_runner_enabled') -and [bool]$Config.self_hosted_runner_enabled) {
+        $normalized = (("$($Config.service_name)-$($Config.environment_name)").ToLowerInvariant()) -replace '_','-'
+        $Config.runner_virtual_network_id = "/subscriptions/$($Config.bootstrap_subscription_id)/resourceGroups/rg-$normalized-bootstrap/providers/Microsoft.Network/virtualNetworks/vnet-$normalized-bootstrap"
+    } else {
+        $Config.runner_virtual_network_id = ''
+    }
 }
 
 # Policy assignments that block ARO cluster creation and cannot be satisfied from
@@ -305,25 +313,8 @@ function Invoke-AROPreflight {
     $repositoryPath = "$($Config.github_organization)/$($Config.github_repository)"
     $repositoryProbe = Invoke-WebRequest -Uri "https://api.github.com/repos/$repositoryPath" -Headers $githubHeaders -SkipHttpErrorCheck
     if ([int]$repositoryProbe.StatusCode -eq 200) {
-        $permissionProbes = @(
-            @{ Name = 'repository files'; Url = "https://api.github.com/repos/$repositoryPath/contents/README.md" }
-            @{ Name = 'environment variables'; Url = "https://api.github.com/repos/$repositoryPath/environments/plan/variables" }
-            @{ Name = 'Actions variables'; Url = "https://api.github.com/repos/$repositoryPath/actions/variables" }
-            @{ Name = 'workflow dispatch'; Url = "https://api.github.com/repos/$repositoryPath/actions/workflows" }
-        )
-        $missingPermissions = [ordered]@{}
-        foreach ($permissionProbe in $permissionProbes) {
-            $probeResponse = Invoke-WebRequest -Uri $permissionProbe.Url -Headers $githubHeaders -SkipHttpErrorCheck
-            if ([int]$probeResponse.StatusCode -ne 403) { continue }
-            $requiredPermission = 'unknown'
-            if ($probeResponse.Headers.ContainsKey('x-accepted-github-permissions')) {
-                $requiredPermission = ($probeResponse.Headers['x-accepted-github-permissions'] -join ', ')
-            }
-            if (-not $missingPermissions.Contains($requiredPermission)) { $missingPermissions[$requiredPermission] = @() }
-            $missingPermissions[$requiredPermission] += $permissionProbe.Name
-        }
-        if ($missingPermissions.Count -gt 0) {
-            $permissionDetail = ($missingPermissions.Keys | ForEach-Object { "$_ (needed for $($missingPermissions[$_] -join ', '))" }) -join '; '
+        $permissionDetail = Get-MissingGitHubPermission -RepositoryPath $repositoryPath -Headers $githubHeaders
+        if ($permissionDetail) {
             throw "The GitHub token is missing permissions: $permissionDetail. GitHub reports only 'Resource not accessible by personal access token' when one is absent. Add them at https://github.com/settings/personal-access-tokens and retry; the token value stays the same, so no regeneration is needed."
         }
     }
@@ -398,6 +389,36 @@ function Invoke-AROPreflight {
     }
 }
 
+function Get-MissingGitHubPermission {
+    # A fine-grained token grants every permission separately, and GitHub only reveals which one is
+    # missing in a response header on the call that fails. Probing every surface bootstrap uses
+    # reports them all at once instead of one per failed apply, each leaving partial state behind.
+    param(
+        [Parameter(Mandatory)][string]$RepositoryPath,
+        [Parameter(Mandatory)][hashtable]$Headers
+    )
+
+    $permissionProbes = @(
+        @{ Name = 'repository files'; Url = "https://api.github.com/repos/$RepositoryPath/contents/README.md" }
+        @{ Name = 'environment variables'; Url = "https://api.github.com/repos/$RepositoryPath/environments/plan/variables" }
+        @{ Name = 'Actions variables'; Url = "https://api.github.com/repos/$RepositoryPath/actions/variables" }
+        @{ Name = 'workflow dispatch'; Url = "https://api.github.com/repos/$RepositoryPath/actions/workflows" }
+    )
+    $missingPermissions = [ordered]@{}
+    foreach ($permissionProbe in $permissionProbes) {
+        $probeResponse = Invoke-WebRequest -Uri $permissionProbe.Url -Headers $Headers -SkipHttpErrorCheck
+        if ([int]$probeResponse.StatusCode -ne 403) { continue }
+        $requiredPermission = 'unknown'
+        if ($probeResponse.Headers.ContainsKey('x-accepted-github-permissions')) {
+            $requiredPermission = ($probeResponse.Headers['x-accepted-github-permissions'] -join ', ')
+        }
+        if (-not $missingPermissions.Contains($requiredPermission)) { $missingPermissions[$requiredPermission] = @() }
+        $missingPermissions[$requiredPermission] += $permissionProbe.Name
+    }
+    if ($missingPermissions.Count -eq 0) { return '' }
+    return ($missingPermissions.Keys | ForEach-Object { "$_ (needed for $($missingPermissions[$_] -join ', '))" }) -join '; '
+}
+
 function Resolve-AROVersion {
     param([Parameter(Mandatory)][hashtable]$Config)
 
@@ -454,6 +475,7 @@ function New-BootstrapInput {
         private_endpoint_subnet_cidr = if ($Config.ContainsKey('private_endpoint_subnet_cidr')) { $Config.private_endpoint_subnet_cidr } else { '' }
         front_door_subnet_cidr = if ($Config.ContainsKey('front_door_subnet_cidr')) { $Config.front_door_subnet_cidr } else { '' }
         front_door_backend_host_name = if ($Config.ContainsKey('front_door_backend_host_name')) { $Config.front_door_backend_host_name } else { '' }
+        runner_virtual_network_id = if ($Config.ContainsKey('runner_virtual_network_id')) { $Config.runner_virtual_network_id } else { '' }
         container_registry_enabled = if ($Config.ContainsKey('container_registry_enabled')) { [bool]$Config.container_registry_enabled } else { $true }
         key_vault_enabled = if ($Config.ContainsKey('key_vault_enabled')) { [bool]$Config.key_vault_enabled } else { $true }
     }

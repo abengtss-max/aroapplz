@@ -3,6 +3,11 @@ locals {
   hub_id_parts  = local.is_spoke ? split("/", var.hub_vnet_id) : []
   hub_rg_name   = local.is_spoke ? local.hub_id_parts[4] : ""
   hub_vnet_name = local.is_spoke ? local.hub_id_parts[8] : ""
+
+  runner_peering_enabled      = var.runner_virtual_network_id != ""
+  runner_id_parts             = local.runner_peering_enabled ? split("/", var.runner_virtual_network_id) : []
+  runner_resource_group_name  = local.runner_peering_enabled ? local.runner_id_parts[4] : ""
+  runner_virtual_network_name = local.runner_peering_enabled ? local.runner_id_parts[8] : ""
 }
 
 resource "azurerm_virtual_network" "aro" {
@@ -245,4 +250,26 @@ resource "azurerm_virtual_network_peering" "hub_to_aro" {
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   allow_gateway_transit        = var.hub_gateway_transit_enabled
+}
+
+# The API server and ingress are private, so pipeline runners on the bootstrap network cannot reach
+# the cluster to deploy workloads until the two networks are peered.
+resource "azurerm_virtual_network_peering" "aro_to_runner" {
+  provider                     = azurerm.workload
+  count                        = local.runner_peering_enabled ? 1 : 0
+  name                         = "peer-${azurerm_virtual_network.aro.name}-to-runner"
+  resource_group_name          = azurerm_resource_group.aro.name
+  virtual_network_name         = azurerm_virtual_network.aro.name
+  remote_virtual_network_id    = var.runner_virtual_network_id
+  allow_virtual_network_access = true
+}
+
+resource "azurerm_virtual_network_peering" "runner_to_aro" {
+  provider                     = azurerm.workload
+  count                        = local.runner_peering_enabled ? 1 : 0
+  name                         = "peer-runner-to-${azurerm_virtual_network.aro.name}"
+  resource_group_name          = local.runner_resource_group_name
+  virtual_network_name         = local.runner_virtual_network_name
+  remote_virtual_network_id    = azurerm_virtual_network.aro.id
+  allow_virtual_network_access = true
 }

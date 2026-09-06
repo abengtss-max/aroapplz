@@ -25,6 +25,10 @@ resource "terraform_data" "input_contract" {
       error_message = "hub_vnet_id must belong to connectivity_subscription_id."
     }
     precondition {
+      condition     = var.runner_virtual_network_id == "" || startswith(lower(var.runner_virtual_network_id), "/subscriptions/${lower(var.workload_subscription_id)}/")
+      error_message = "runner_virtual_network_id must belong to workload_subscription_id; peer other subscriptions manually."
+    }
+    precondition {
       condition = var.ingress_mode != "application_gateway" || (
         var.application_gateway_subnet_cidr != "" &&
         var.application_gateway_backend_host_name != ""

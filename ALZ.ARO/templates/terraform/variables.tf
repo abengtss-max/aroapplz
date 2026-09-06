@@ -182,6 +182,12 @@ variable "front_door_subnet_cidr" {
   type        = string
   default     = ""
 }
+
+variable "runner_virtual_network_id" {
+  description = "Bootstrap runner virtual network to peer with the cluster network. Empty disables the peering."
+  type        = string
+  default     = ""
+}
 variable "container_registry_enabled" {
   description = "Create an Azure Container Registry reachable only through a private endpoint."
   type        = bool

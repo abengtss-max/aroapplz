@@ -9,6 +9,10 @@ module "front_door" {
     azurerm.workload = azurerm.workload
   }
 
+  # The module reads the cluster's internal load balancer, which only exists after the
+  # cluster is created; without this the data source resolves to null during the first plan.
+  depends_on = [azurerm_redhat_openshift_cluster.aro]
+
   cluster_name                = var.cluster_name
   location                    = azurerm_resource_group.aro.location
   resource_group_name         = azurerm_resource_group.aro.name

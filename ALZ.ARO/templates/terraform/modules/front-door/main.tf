@@ -6,10 +6,6 @@ terraform {
       version               = "~> 5.2"
       configuration_aliases = [azurerm.workload]
     }
-    time = {
-      source  = "hashicorp/time"
-      version = "~> 0.12"
-    }
   }
 }
 
@@ -91,12 +87,44 @@ resource "azurerm_cdn_frontdoor_origin_group" "aro" {
   }
 }
 
-# Azure keeps the private endpoint connection for a while after the origin is deleted, and
-# refuses to delete a Private Link Service that still has one. Ordering the origin behind this
-# makes destroy wait between removing the origin and removing the service.
-resource "time_sleep" "private_link_drain" {
-  depends_on       = [azurerm_private_link_service.aro]
-  destroy_duration = "300s"
+# Deleting the Front Door origin does not remove its private endpoint connection, and Azure refuses
+# to delete a Private Link Service that still has one, so the connections must be deleted explicitly.
+# This resource depends on the origin, so on destroy it runs before the service is removed.
+resource "terraform_data" "private_link_connections" {
+  depends_on = [azurerm_cdn_frontdoor_origin.aro]
+
+  input = {
+    resource_group_name = var.resource_group_name
+    service_name        = azurerm_private_link_service.aro.name
+  }
+
+  provisioner "local-exec" {
+    when        = destroy
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      rg='${self.input.resource_group_name}'
+      pls='${self.input.service_name}'
+      if ! az network private-link-service show -g "$rg" -n "$pls" -o none 2>/dev/null; then
+        echo "Private Link Service $pls is already gone"
+        exit 0
+      fi
+      for _ in $(seq 1 30); do
+        names=$(az network private-link-service show -g "$rg" -n "$pls" \
+          --query "privateEndpointConnections[].name" -o tsv 2>/dev/null || true)
+        if [ -z "$names" ]; then
+          echo "No private endpoint connections remain on $pls"
+          exit 0
+        fi
+        for name in $names; do
+          az network private-link-service connection delete -g "$rg" --service-name "$pls" --name "$name" -o none 2>/dev/null || true
+        done
+        sleep 10
+      done
+      echo "Private endpoint connections still present on $pls" >&2
+      exit 1
+    EOT
+  }
 }
 
 resource "azurerm_cdn_frontdoor_origin" "aro" {
@@ -119,8 +147,41 @@ resource "azurerm_cdn_frontdoor_origin" "aro" {
     location               = var.location
     private_link_target_id = azurerm_private_link_service.aro.id
   }
+}
 
-  depends_on = [time_sleep.private_link_drain]
+# Front Door raises the private endpoint from a Microsoft-owned subscription, so the connection
+# arrives Pending and auto_approval_subscription_ids cannot match it. Left pending the origin is
+# unreachable and the endpoint serves errors, so approve it here rather than by hand.
+resource "terraform_data" "approve_private_link" {
+  triggers_replace = [azurerm_cdn_frontdoor_origin.aro.id]
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      rg='${var.resource_group_name}'
+      pls='pls-${var.cluster_name}'
+      for _ in $(seq 1 30); do
+        status=$(az network private-link-service show -g "$rg" -n "$pls" \
+          --query "privateEndpointConnections[0].privateLinkServiceConnectionState.status" -o tsv 2>/dev/null || true)
+        if [ "$status" = "Approved" ]; then
+          echo "Front Door private endpoint connection already approved"
+          exit 0
+        fi
+        name=$(az network private-link-service show -g "$rg" -n "$pls" \
+          --query "privateEndpointConnections[?privateLinkServiceConnectionState.status=='Pending'].name | [0]" -o tsv 2>/dev/null || true)
+        if [ -n "$name" ] && [ "$name" != "None" ]; then
+          az network private-link-service connection update -g "$rg" --service-name "$pls" --name "$name" \
+            --connection-status Approved --description "Approved by ALZ.ARO for the Front Door origin" -o none
+          echo "Approved Front Door private endpoint connection $name"
+          exit 0
+        fi
+        sleep 10
+      done
+      echo "Timed out waiting for the Front Door private endpoint connection to appear" >&2
+      exit 1
+    EOT
+  }
 }
 
 # Without a route the endpoint accepts no traffic, which is the defect in the reference implementation.

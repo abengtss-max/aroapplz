@@ -105,8 +105,27 @@ In `spoke` mode the cluster is created with `outbound_type = UserDefinedRouting`
 | Value | Implementation |
 | --- | --- |
 | `none` | Default; no follow-on edge contract selected |
-| `front_door` | Follow-on integration contract; no Front Door deployment |
+| `front_door` | Provisions Premium Front Door, WAF, and a Private Link Service in front of the private ARO ingress |
 | `application_gateway` | Provisions public WAF_v2 with a private ARO ingress backend and diagnostics |
+
+### Front Door
+
+`front_door_backend_host_name` must be an OpenShift route hostname on the cluster's own
+`*.apps.<aro_domain>.<region>.aroapp.io` domain. Front Door reaches the origin over HTTPS with
+certificate subject-name checking on, which Azure forces for Private Link origins. The default ARO
+ingress certificate is issued by a public Microsoft CA and matches that wildcard, so no custom
+domain or certificate is required. A self-signed or internal-CA certificate is never accepted:
+Front Door requires a chain to a CA in the Microsoft Trusted CA List, and disabling the subject-name
+check does not relax that.
+
+The route must exist before Front Door can serve traffic; until then the origin returns the
+OpenShift router error and Front Door surfaces it. Allow roughly ten minutes after the apply for
+Front Door configuration to propagate globally before treating an error as a failure.
+
+Terraform approves the Front Door private endpoint connection automatically. Front Door raises it
+from a Microsoft-owned subscription, so it arrives `Pending` and subscription auto-approval cannot
+match it; left pending, the endpoint serves errors.
+
 
 ## Runtime values: never put these in JSON
 

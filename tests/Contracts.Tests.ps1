@@ -12,6 +12,21 @@ Describe 'Architecture contracts' {
         $workload | Should -Match '\["standalone", "spoke"\]'
         $workload | Should -Not -Match 'existing.spoke|existing_spoke'
     }
+    It 'defers Front Door load balancer discovery until the cluster exists' {
+        $workload | Should -Match 'depends_on = \[azurerm_redhat_openshift_cluster\.aro\]'
+    }
+    It 'approves the Front Door private endpoint connection' {
+        $workload | Should -Match 'resource "terraform_data" "approve_private_link"'
+    }
+    It 'deletes private endpoint connections before the Private Link Service' {
+        $workload | Should -Match 'resource "terraform_data" "private_link_connections"'
+        $workload | Should -Match 'when        = destroy'
+        $workload | Should -Not -Match 'time_sleep" "private_link_drain'
+    }
+    It 'peers the runner network with the cluster network on request' {
+        $workload | Should -Match 'resource "azurerm_virtual_network_peering" "aro_to_runner"'
+        $workload | Should -Match 'resource "azurerm_virtual_network_peering" "runner_to_aro"'
+    }
     It 'uses managed identities for pipelines and the ARO cluster' {
         $bootstrap | Should -Match 'resource "azurerm_user_assigned_identity" "pipeline"'
         $workload | Should -Match 'platform_workload_identity_profile'

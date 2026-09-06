@@ -19,3 +19,40 @@ Describe 'ALZ.ARO module' {
         $errors | Should -BeNullOrEmpty
     }
 }
+
+Describe 'GitHub token permission probe' {
+    BeforeAll { Import-Module $manifest -Force }
+
+    It 'names every missing permission in a single message' {
+        InModuleScope 'ALZ.ARO' {
+            Mock Invoke-WebRequest {
+                if ($Uri -match '/contents/README.md$|/actions/variables$') {
+                    return [pscustomobject]@{
+                        StatusCode = 403
+                        Headers    = @{ 'x-accepted-github-permissions' = @('contents=write') }
+                    }
+                }
+                return [pscustomobject]@{ StatusCode = 200; Headers = @{} }
+            }
+            $detail = Get-MissingGitHubPermission -RepositoryPath 'owner/repo' -Headers @{ Authorization = 'Bearer token' }
+            $detail | Should -Match 'contents=write'
+            $detail | Should -Match 'repository files'
+            $detail | Should -Match 'Actions variables'
+            $detail | Should -Not -Match 'workflow dispatch'
+        }
+    }
+
+    It 'reports unknown when GitHub omits the permission header' {
+        InModuleScope 'ALZ.ARO' {
+            Mock Invoke-WebRequest { [pscustomobject]@{ StatusCode = 403; Headers = @{} } }
+            Get-MissingGitHubPermission -RepositoryPath 'owner/repo' -Headers @{} | Should -Match 'unknown'
+        }
+    }
+
+    It 'stays silent when every probe succeeds' {
+        InModuleScope 'ALZ.ARO' {
+            Mock Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200; Headers = @{} } }
+            Get-MissingGitHubPermission -RepositoryPath 'owner/repo' -Headers @{} | Should -BeNullOrEmpty
+        }
+    }
+}
