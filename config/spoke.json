@@ -27,5 +27,13 @@
   "application_gateway_subnet_cidr": "",
   "application_gateway_backend_host_name": "",
   "container_registry_enabled": true,
-  "key_vault_enabled": true
+  "key_vault_enabled": true,
+  "self_hosted_runner_enabled": false,
+  "runner_count": 2,
+  "runner_image_tag": "latest",
+  "runner_cpu": 2,
+  "runner_memory_gb": 8,
+  "runner_virtual_network_cidr": "",
+  "runner_container_instances_subnet_cidr": "",
+  "runner_private_endpoint_subnet_cidr": ""
 }

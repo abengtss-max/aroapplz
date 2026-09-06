@@ -61,6 +61,10 @@ The runner also has to satisfy two requirements that are easy to miss on a self-
 - **Azure CLI must be installed.** `azure/login` performs `az login` internally, so a runner image without the Azure CLI fails at the sign-in step even though the workflow itself never calls `az`.
 - **The runner must survive a long job.** Creating an ARO cluster takes roughly 45 to 60 minutes in a single Terraform apply. Anything that restarts the runner service mid-job cancels the deployment and leaves the cluster still installing while Terraform loses track of it. On Ubuntu hosts, `unattended-upgrades` combined with `needrestart` will do exactly this when a library is patched. Either exclude the runner service from automatic restarts or schedule patching outside deployment windows.
 
+### Optional: let bootstrap create the runners
+
+If you do not already operate a suitable runner, set `self_hosted_runner_enabled` to `true` and bootstrap will build one for you on Azure Container Instances. This is off by default; leave it `false` to keep using your own runner. See [self-hosted runners](../operations/self-hosted-runner.md) for what it creates and what it costs.
+
 ## Extra requirements for `spoke`
 
 `spoke` requires an existing hub VNet and an existing firewall or NVA next hop. Obtain:

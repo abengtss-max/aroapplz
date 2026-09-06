@@ -21,7 +21,17 @@ Copy one to the ignored `config/local.json` before editing.
 | `github_organization` | Yes | GitHub organization or owner for the generated repository |
 | `github_repository` | Yes | Name of the new private workload repository |
 | `apply_approvers` | Yes | Non-empty array of GitHub usernames used for private-repository environment protection when the owner has GitHub Enterprise |
-| `runner_label` | No | Label of a GitHub runner your organization already operates, used by the generated CI/CD callers. Defaults to `ubuntu-latest`. The accelerator never provisions runners |
+| `runner_label` | No | Label of the GitHub runner used by the generated CI/CD callers. Defaults to `ubuntu-latest`. Must name a self-hosted label when `self_hosted_runner_enabled` is true |
+| `self_hosted_runner_enabled` | No | Create GitHub Actions runners on Azure Container Instances during bootstrap. Defaults to `false`, in which case you supply your own runner |
+| `runner_count` | No | Number of runner container groups. Defaults to `2`, maximum `20`. Only read when `self_hosted_runner_enabled` is true |
+| `runner_cpu` | No | vCPU per runner. Defaults to `2` |
+| `runner_memory_gb` | No | Memory in GB per runner. Defaults to `8` |
+| `runner_image_tag` | No | Tag for the runner image built into the bootstrap registry. Defaults to `latest` |
+| `runner_virtual_network_cidr` | Conditional | Address space for the runner virtual network. Required when `self_hosted_runner_enabled` is true |
+| `runner_container_instances_subnet_cidr` | Conditional | Subnet for the runner container groups, delegated to Container Instances. Required when `self_hosted_runner_enabled` is true |
+| `runner_private_endpoint_subnet_cidr` | Conditional | Subnet for the state and registry private endpoints. Required when `self_hosted_runner_enabled` is true |
+
+When `self_hosted_runner_enabled` is true, set `GITHUB_RUNNER_TOKEN` in the environment to a personal access token the runners exchange for a registration token. It is never written to the configuration file or the generated Terraform variables. See [self-hosted runners](../operations/self-hosted-runner.md).
 
 Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner plan and writes it only to generated bootstrap input. It is not a user-supplied configuration field. Non-Enterprise owners receive a warning because GitHub does not support the reviewer rule for their generated private repository.
 

@@ -84,6 +84,18 @@ function Assert-AROConfig {
         throw "container_registry_enabled or key_vault_enabled requires 'private_endpoint_subnet_cidr'."
     }
     if (-not $Config.ContainsKey('apply_approvers') -or @($Config.apply_approvers).Count -eq 0) { throw 'At least one GitHub apply approver is required to protect apply and destroy.' }
+    $selfHostedRunner = $Config.ContainsKey('self_hosted_runner_enabled') -and [bool]$Config.self_hosted_runner_enabled
+    if ($selfHostedRunner) {
+        foreach ($name in @('runner_virtual_network_cidr','runner_container_instances_subnet_cidr','runner_private_endpoint_subnet_cidr')) {
+            if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "self_hosted_runner_enabled requires '$name'." }
+        }
+        if (-not $Config.ContainsKey('runner_count') -or [int]$Config.runner_count -lt 1) { $Config.runner_count = 2 }
+        if ([int]$Config.runner_count -gt 20) { throw 'runner_count must be 20 or fewer.' }
+        if (-not $Config.ContainsKey('runner_image_tag') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_image_tag)) { $Config.runner_image_tag = 'latest' }
+        if (-not $Config.ContainsKey('runner_cpu') -or [int]$Config.runner_cpu -lt 1) { $Config.runner_cpu = 2 }
+        if (-not $Config.ContainsKey('runner_memory_gb') -or [int]$Config.runner_memory_gb -lt 1) { $Config.runner_memory_gb = 8 }
+        if ($Config.runner_label -eq 'ubuntu-latest') { throw 'self_hosted_runner_enabled requires runner_label to name a self-hosted label, for example self-hosted.' }
+    }
     if ($Config.deployment_mode -eq 'spoke') {
         foreach ($name in @('connectivity_subscription_id','hub_vnet_id','next_hop_ip')) {
             if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "spoke mode requires '$name'." }
@@ -246,6 +258,15 @@ function Invoke-AROPreflight {
         else {
             throw 'Set GITHUB_TOKEN or GH_TOKEN to a least-privilege GitHub token. The module does not reuse GitHub CLI authentication and never writes or prints the credential.'
         }
+    }
+
+    if ($Config.ContainsKey('self_hosted_runner_enabled') -and [bool]$Config.self_hosted_runner_enabled) {
+        # Passed to Terraform through the environment so the runner credential is
+        # never written to the generated tfvars file.
+        if ([string]::IsNullOrWhiteSpace($env:GITHUB_RUNNER_TOKEN)) {
+            throw 'self_hosted_runner_enabled requires GITHUB_RUNNER_TOKEN to be a personal access token the runners can exchange for a registration token. It is read from the environment and never written to disk.'
+        }
+        $env:TF_VAR_github_runner_token = $env:GITHUB_RUNNER_TOKEN
     }
 
     $githubHeaders = @{
@@ -411,6 +432,16 @@ function New-BootstrapInput {
         apply_approvers = @($Config.apply_approvers)
         apply_environment_reviewers_enabled = [bool]$Config.apply_environment_reviewers_enabled
         repository_files = $files
+    }
+    if ($Config.ContainsKey('self_hosted_runner_enabled') -and [bool]$Config.self_hosted_runner_enabled) {
+        $input.self_hosted_runner_enabled = $true
+        $input.runner_count = [int]$Config.runner_count
+        $input.runner_image_tag = [string]$Config.runner_image_tag
+        $input.runner_cpu = [int]$Config.runner_cpu
+        $input.runner_memory_gb = [int]$Config.runner_memory_gb
+        $input.runner_virtual_network_cidr = [string]$Config.runner_virtual_network_cidr
+        $input.runner_container_instances_subnet_cidr = [string]$Config.runner_container_instances_subnet_cidr
+        $input.runner_private_endpoint_subnet_cidr = [string]$Config.runner_private_endpoint_subnet_cidr
     }
     $input | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
 }

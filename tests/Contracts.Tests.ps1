@@ -33,12 +33,28 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Match 'resource "azapi_resource" "state_container"'
         $bootstrap | Should -Not -Match 'resource "azurerm_storage_account" "state"'
     }
-    It 'selects any customer runner label but never provisions a runner' {
+    It 'selects any customer runner label and only provisions runners when opted in' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
         $module | Should -Match 'runner_label -notmatch'
         $module | Should -Match 'runner_label: \$\(\$Config\.runner_label\)'
-        $forbiddenRunnerPattern = ('azurerm_' + 'linux_virtual_machine|actions/runners/' + 'registration-token|runner_registration_token|github_runner_token')
+        # Runners are never virtual machines, and bootstrap never mints a
+        # registration token itself; the image exchanges a PAT at startup.
+        $forbiddenRunnerPattern = ('azurerm_' + 'linux_virtual_machine|actions/runners/' + 'registration-token|runner_registration_token')
         $bootstrap | Should -Not -Match $forbiddenRunnerPattern
+        # The whole runner stack hangs off a single opt-in flag that defaults off.
+        $bootstrapRoot = Get-Content (Join-Path $root 'bootstrap\alz\github\main.tf') -Raw
+        $bootstrapRoot | Should -Match 'count\s*=\s*var\.self_hosted_runner_enabled \? 1 : 0'
+        $bootstrapVars = Get-Content (Join-Path $root 'bootstrap\alz\github\variables.tf') -Raw
+        $bootstrapVars | Should -Match 'variable "self_hosted_runner_enabled"[\s\S]{0,80}default\s*=\s*false'
+    }
+    It 'scopes created runners to the workload repository and keeps them ephemeral' {
+        $runner = Get-Content (Join-Path $root 'bootstrap\modules\runner\main.tf') -Raw
+        # Repository scope, so a runner cannot pick up jobs from other repositories.
+        $runner | Should -Match 'GH_RUNNER_URL\s*=\s*"https://github\.com/\$\{var\.github_organization\}/\$\{var\.github_repository\}"'
+        # No GH_RUNNER_MODE assignment leaves the upstream image in ephemeral
+        # mode, so no workspace or cached credential survives between jobs.
+        $runner | Should -Not -Match 'GH_RUNNER_MODE\s*='
+        $runner | Should -Match 'secure_environment_variables'
     }
     It 'only configures private repository reviewers when the owner plan supports them' {
         $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
@@ -56,7 +72,13 @@ Describe 'Architecture contracts' {
         $module | Should -Match 'does not reuse GitHub CLI authentication'
         $module | Should -Not -Match "Invoke-NativeCommand gh @\('auth','token'\)"
         $module | Should -Match "GitHub rejected GITHUB_TOKEN"
-        $bootstrap | Should -Not -Match 'variable\s+"github_token"|token\s*=\s*var\.github'
+        $bootstrap | Should -Not -Match 'variable\s+"github_token"'
+        # The runner registration token reaches Terraform only through the
+        # environment, so it is never written to the generated tfvars file.
+        $module | Should -Match '\$env:TF_VAR_github_runner_token\s*=\s*\$env:GITHUB_RUNNER_TOKEN'
+        $module | Should -Not -Match 'github_runner_token\s*=\s*\$Config'
+        $runnerVars = Get-Content (Join-Path $root 'bootstrap\modules\runner\variables.tf') -Raw
+        $runnerVars | Should -Match 'variable "github_runner_token"[\s\S]{0,120}sensitive\s*=\s*true'
     }
     It 'documents the GitHub bootstrap PAT scopes' {
         $quickstart = Get-Content (Join-Path $root 'docs\get-started\quickstart.md') -Raw

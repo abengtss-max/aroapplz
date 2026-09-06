@@ -30,6 +30,7 @@ nav:
       - Identity and authorization: reference/identity.md
   - Operations:
       - Day-2 operations: operations/day2.md
+      - Self-hosted runners: operations/self-hosted-runner.md
       - Validation: operations/validation.md
       - Remove workload and bootstrap: operations/cleanup.md
   - Governance:
