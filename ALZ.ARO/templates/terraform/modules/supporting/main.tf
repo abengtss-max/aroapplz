@@ -128,3 +128,27 @@ resource "azurerm_private_endpoint" "key_vault" {
     private_dns_zone_ids = [azurerm_private_dns_zone.this["vault"].id]
   }
 }
+
+resource "azurerm_monitor_diagnostic_setting" "registry" {
+  provider                   = azurerm.workload
+  count                      = var.container_registry_enabled ? 1 : 0
+  name                       = "send-to-log-analytics"
+  target_resource_id         = azurerm_container_registry.this[0].id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log { category_group = "allLogs" }
+  enabled_metric { category = "AllMetrics" }
+}
+
+# Key Vault audit events are a security control, not optional telemetry.
+resource "azurerm_monitor_diagnostic_setting" "key_vault" {
+  provider                   = azurerm.workload
+  count                      = var.key_vault_enabled ? 1 : 0
+  name                       = "send-to-log-analytics"
+  target_resource_id         = azurerm_key_vault.this[0].id
+  log_analytics_workspace_id = var.log_analytics_workspace_id
+
+  enabled_log { category_group = "audit" }
+  enabled_log { category_group = "allLogs" }
+  enabled_metric { category = "AllMetrics" }
+}

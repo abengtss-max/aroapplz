@@ -185,6 +185,13 @@ Describe 'Architecture contracts' {
         $supporting | Should -Match 'default_action\s*=\s*"Deny"'
         $supporting | Should -Match 'admin_enabled\s*=\s*false'
     }
+    It 'sends supporting service logs to the landing zone workspace' {
+        $supporting = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\modules\supporting\main.tf') -Raw
+        $supporting | Should -Match 'azurerm_monitor_diagnostic_setting" "registry'
+        $supporting | Should -Match 'azurerm_monitor_diagnostic_setting" "key_vault'
+        # Key Vault audit events are a security control rather than optional telemetry.
+        $supporting | Should -Match 'category_group = "audit"'
+    }
     It 'publishes a private cluster through Front Door with a route and a WAF' {
         $frontDoor = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\modules\front-door\main.tf') -Raw
         $frontDoor | Should -Match 'azurerm_private_link_service'

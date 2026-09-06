@@ -126,7 +126,7 @@ The generated Terraform exports cluster ID/name, ARO VNet ID, both ARO subnet ID
 
 The landing zone creates a Container Registry and a Key Vault that are reachable only through private endpoints in `private_endpoint_subnet_cidr`. Both have `publicNetworkAccess` disabled, a `Deny` default network rule, and a private DNS zone linked to the ARO VNet. The registry uses the Premium SKU because private endpoints require it, and admin credentials are disabled in favour of Microsoft Entra authentication. Set `container_registry_enabled` or `key_vault_enabled` to `false` to opt out.
 
-A Log Analytics workspace is created for the landing zone unless `log_analytics_workspace_id` names an existing one. Ingress diagnostics are sent to it.
+A Log Analytics workspace is created for the landing zone unless `log_analytics_workspace_id` names an existing one. The registry, the vault and the selected ingress all send resource logs and metrics to it. Key Vault audit events are included because they are a security control rather than optional telemetry. ARO itself exposes no resource-level log categories, so cluster logging uses the Cluster Logging Forwarder.
 
 !!! note "Azure Verified Modules"
     AVM is the preferred source for these resources, but every candidate AVM module currently constrains `azurerm` to 4.x while this accelerator targets 5.x. They are therefore declared natively, in modules that mirror the AVM boundaries, and can be swapped when AVM supports the 5.x provider.
@@ -160,6 +160,7 @@ A managed WAF policy runs in `front_door_waf_mode` (`Prevention` by default) wit
     ```
 !!! warning "The origin certificate is a prerequisite, not an option"
     Azure rejects a Private Link origin unless certificate name checking is enabled, so Front Door mode requires the OpenShift ingress to already present a **publicly trusted** certificate matching `front_door_backend_host_name`. OpenShift serves `*.apps` with a self-signed certificate by default, so replace the ingress certificate before selecting this mode. The origin reports as unhealthy until you do.
+
 
 
 

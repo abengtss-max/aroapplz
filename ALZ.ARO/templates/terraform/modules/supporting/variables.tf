@@ -28,6 +28,9 @@ variable "container_registry_sku" {
 variable "key_vault_enabled" {
   type = bool
 }
+variable "log_analytics_workspace_id" {
+  type = string
+}
 variable "tags" {
   type    = map(string)
   default = {}

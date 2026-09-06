@@ -94,5 +94,6 @@ module "supporting" {
   container_registry_enabled = var.container_registry_enabled
   container_registry_sku     = var.container_registry_sku
   key_vault_enabled          = var.key_vault_enabled
+  log_analytics_workspace_id = local.log_analytics_workspace_id
   tags                       = var.tags
 }
