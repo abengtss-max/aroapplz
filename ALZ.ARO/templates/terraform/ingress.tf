@@ -20,6 +20,7 @@ module "front_door" {
   ingress_ip_address          = azurerm_redhat_openshift_cluster.aro.ingress_profile[0].ip_address
   private_link_subnet_id      = azurerm_subnet.front_door[0].id
   backend_host_name           = var.front_door_backend_host_name
+  custom_domain               = var.front_door_custom_domain
   sku                         = var.front_door_sku
   waf_mode                    = var.front_door_waf_mode
   subscription_id             = var.workload_subscription_id

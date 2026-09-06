@@ -12,6 +12,10 @@ output "ingress_status" {
 output "front_door_endpoint_host_name" {
   value = local.front_door_enabled ? module.front_door[0].endpoint_host_name : null
 }
+output "front_door_custom_domain_validation" {
+  description = "DNS records to publish before Front Door issues the managed certificate."
+  value       = local.front_door_enabled ? module.front_door[0].custom_domain_validation : null
+}
 output "application_gateway_public_ip" {
   value = local.application_gateway_enabled ? module.application_gateway[0].public_ip_address : null
 }

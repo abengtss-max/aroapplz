@@ -22,6 +22,11 @@ variable "backend_host_name" {
   description = "OpenShift application hostname presented to the origin."
   type        = string
 }
+variable "custom_domain" {
+  description = "Public hostname served by Front Door. Empty serves only the azurefd.net endpoint."
+  type        = string
+  default     = ""
+}
 variable "sku" {
   type = string
 }

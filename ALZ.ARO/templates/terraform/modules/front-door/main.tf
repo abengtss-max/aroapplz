@@ -184,19 +184,34 @@ resource "terraform_data" "approve_private_link" {
   }
 }
 
+# Front Door issues and rotates this certificate itself once the domain is validated, so the
+# customer needs no certificate of their own for the client-facing hop.
+resource "azurerm_cdn_frontdoor_custom_domain" "aro" {
+  provider                 = azurerm.workload
+  count                    = var.custom_domain == "" ? 0 : 1
+  name                     = replace(var.custom_domain, ".", "-")
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.aro.id
+  host_name                = var.custom_domain
+
+  tls {
+    certificate_type = "ManagedCertificate"
+  }
+}
+
 # Without a route the endpoint accepts no traffic, which is the defect in the reference implementation.
 resource "azurerm_cdn_frontdoor_route" "aro" {
-  provider                      = azurerm.workload
-  name                          = "default-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.aro.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.aro.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.aro.id]
-  enabled                       = true
-  forwarding_protocol           = "HttpsOnly"
-  https_redirect_enabled        = true
-  patterns_to_match             = ["/*"]
-  supported_protocols           = ["Http", "Https"]
-  link_to_default_domain        = true
+  provider                        = azurerm.workload
+  name                            = "default-route"
+  cdn_frontdoor_endpoint_id       = azurerm_cdn_frontdoor_endpoint.aro.id
+  cdn_frontdoor_origin_group_id   = azurerm_cdn_frontdoor_origin_group.aro.id
+  cdn_frontdoor_origin_ids        = [azurerm_cdn_frontdoor_origin.aro.id]
+  cdn_frontdoor_custom_domain_ids = azurerm_cdn_frontdoor_custom_domain.aro[*].id
+  enabled                         = true
+  forwarding_protocol             = "HttpsOnly"
+  https_redirect_enabled          = true
+  patterns_to_match               = ["/*"]
+  supported_protocols             = ["Http", "Https"]
+  link_to_default_domain          = true
 }
 
 resource "azurerm_cdn_frontdoor_firewall_policy" "aro" {
@@ -235,6 +250,15 @@ resource "azurerm_cdn_frontdoor_security_policy" "aro" {
 
         domain {
           cdn_frontdoor_domain_id = azurerm_cdn_frontdoor_endpoint.aro.id
+        }
+
+        # Without this the custom domain would answer without the firewall in front of it.
+        dynamic "domain" {
+          for_each = azurerm_cdn_frontdoor_custom_domain.aro
+          iterator = custom
+          content {
+            cdn_frontdoor_domain_id = custom.value.id
+          }
         }
       }
     }

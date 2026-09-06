@@ -161,6 +161,64 @@ Choose GitHub UI unless command-line dispatch is required.
 
 When `REDHAT_PULL_SECRET` is required, add it to both generated GitHub environments before dispatch. Application Gateway HTTPS also requires the certificate data and password described in the [configuration reference](../reference/configuration.md).
 
+## 6. Publish a Front Door custom domain
+
+Skip this when `ingress_mode` is not `front_door`, or when serving the `azurefd.net` endpoint is enough.
+
+Front Door issues and rotates the certificate itself, so no certificate purchase, Key Vault, or PFX is
+involved. Set `front_door_custom_domain` in `config/local.json`, re-run the bootstrap so the workload
+repository picks the value up, and dispatch `apply` again. Terraform then prints the two records to
+publish:
+
+```powershell
+terraform output -json front_door_custom_domain_validation
+```
+
+Create both records with your DNS provider, using the subdomain only if the provider appends the zone:
+
+| Type | Name | Value | Purpose |
+| --- | --- | --- | --- |
+| `TXT` | `_dnsauth.<subdomain>` | `txt_record_value` from the output | Proves domain ownership so Front Door issues the managed certificate |
+| `CNAME` | `<subdomain>` | `cname_target` from the output, ending in `azurefd.net` | Sends client traffic to Front Door |
+
+Both records are required. With only the TXT record the certificate is issued but nothing resolves;
+with only the CNAME the domain never validates and HTTPS fails.
+
+Validation usually completes within minutes. Confirm with:
+
+```powershell
+az afd custom-domain list -g <aro-resource-group> --profile-name <front-door-profile> `
+  --query "[].{domain:hostName,state:domainValidationState}" -o table
+```
+
+Traffic flows once the state reaches `Approved`. Front Door is a global service, so allow up to
+30 minutes after the first apply before treating an error page as a failure.
+
+## Standards alignment
+
+This accelerator follows [Secure access to Azure Red Hat OpenShift with Azure Front
+Door](https://learn.microsoft.com/azure/openshift/howto-secure-openshift-with-front-door): a private
+cluster with private ingress visibility, a dedicated Private Link subnet that is neither delegated
+nor given service endpoints, a Private Link Service attached to the cluster `-internal` load balancer
+on the ingress frontend address, Front Door Premium, a Private Link origin, and certificate subject
+name checking left enabled. The ARO-managed resource group is never modified, in line with Red Hat
+guidance; the cluster load balancer is only read.
+
+Where the implementation differs from the documented click-through, and why:
+
+| Difference | Reason |
+| --- | --- |
+| Terraform approves the private endpoint connection and deletes connections before destroy | `azurerm` exposes no resource for either. Microsoft documents approving through the Azure CLI, which is what runs. Without the destroy step the Private Link Service cannot be deleted and teardown fails |
+| The origin defaults to the cluster `apps` domain rather than a customer domain | The default ARO ingress certificate is publicly trusted and matches that name, so the walkthrough works before you own a domain. Set `front_door_custom_domain` for the documented pattern |
+| The Private Link Service is visible only to the workload subscription | The walkthrough uses *Anyone with your alias*. Restricting visibility is tighter, and Front Door still connects |
+| The runner registry allows public network access with the `AzureServices` bypass | ACR Tasks build the runner image on Microsoft-managed public agents, which cannot reach a private-only registry. Runners pull through a private endpoint. Set `self_hosted_runner_enabled` to `false` to avoid it entirely. A [dedicated agent pool](https://learn.microsoft.com/azure/container-registry/tasks-agent-pools) can run the build inside a virtual network and remove the public endpoint, but it is still in preview, is billed on allocation rather than use, and needs its own subnet and outbound rules |
+
+Two platform limits apply to any Front Door Private Link design:
+
+- Each Front Door regional cluster is limited to **7200 requests per second per profile**; beyond that
+  Azure returns `429`. Spread traffic across origins in different Private Link regions to scale past it.
+- An origin group cannot mix public and private origins.
+
 ## Destroy everything safely
 
 Destroy in this order: **workload first, bootstrap second**. Keep this clone, `config/local.json`, and local Terraform state until all verification succeeds. Your runner is outside accelerator ownership and is not removed.

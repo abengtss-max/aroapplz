@@ -188,6 +188,12 @@ variable "runner_virtual_network_id" {
   type        = string
   default     = ""
 }
+
+variable "front_door_custom_domain" {
+  description = "Public hostname served by Front Door with a managed certificate. Empty serves only the azurefd.net endpoint."
+  type        = string
+  default     = ""
+}
 variable "container_registry_enabled" {
   description = "Create an Azure Container Registry reachable only through a private endpoint."
   type        = bool
