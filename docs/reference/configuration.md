@@ -127,6 +127,66 @@ Terraform approves the Front Door private endpoint connection automatically. Fro
 from a Microsoft-owned subscription, so it arrives `Pending` and subscription auto-approval cannot
 match it; left pending, the endpoint serves errors.
 
+### Adding a custom domain after the first deployment
+
+The generated `azurefd.net` endpoint serves traffic on its own, so a domain is never required to go
+live. Adding one later is a non-destructive incremental change: set `front_door_custom_domain`,
+re-run the bootstrap, and dispatch `apply`. The generated endpoint keeps serving throughout, because
+the route stays linked to the default domain.
+
+Add the domain through configuration rather than the Azure portal. The route owns its domain
+association in Terraform:
+
+```hcl
+cdn_frontdoor_custom_domain_ids = azurerm_cdn_frontdoor_custom_domain.aro[*].id
+```
+
+With `front_door_custom_domain` empty that list is empty, so the next apply removes a domain attached
+by hand and traffic stops. The failure surfaces during an unrelated deployment, which makes it hard
+to attribute. A portal-managed domain also bypasses the firewall association that the module builds
+for every domain it manages.
+
+## Environments
+
+`service_name` and `environment_name` drive every generated name, so `dev`, `test`, and `prod` can
+target different subscriptions and different repositories from the same configuration shape.
+
+Bootstrap state is local to the clone it runs from, and every run uses the same
+`bootstrap/alz/github/terraform.tfstate`. Running a second environment from the same clone therefore
+loads the first environment's state and plans to rename or destroy its repository, identities, and
+state storage. Give each environment its own clone until state isolation is built in:
+
+```text
+aroapplz-dev/   config/local.json -> service_name aro, environment_name dev
+aroapplz-test/  config/local.json -> service_name aro, environment_name test
+aroapplz-prod/  config/local.json -> service_name aro, environment_name prod
+```
+
+Keep each clone, its `config/local.json`, and its local state for as long as the environment exists;
+the bootstrap cannot be destroyed without them.
+
+## Repository layout
+
+The bootstrap publishes only what the workload needs: `terraform/` with the root configuration and
+its modules, and `.github/workflows/` with the pipelines. Accelerator tooling such as `ALZ.ARO/`,
+`bootstrap/`, `docs/`, `tests/`, and `config/` stays in the accelerator clone and is never copied
+into the generated repository.
+
+New infrastructure follows the shape the generated modules already use, so a module added later sits
+beside them:
+
+```text
+terraform/
+  main.tf variables.tf outputs.tf terraform.tf backend.tf
+  aro.tf network.tf identity.tf ingress.tf
+  modules/
+    front-door/ application-gateway/ monitoring/ supporting/
+      main.tf variables.tf outputs.tf
+```
+
+Bootstrap overwrites the files it publishes, so keep additions in new files and new module
+directories rather than editing the generated ones.
+
 
 ## Runtime values: never put these in JSON
 
