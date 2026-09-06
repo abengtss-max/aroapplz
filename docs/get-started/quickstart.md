@@ -83,14 +83,7 @@ $env:GITHUB_TOKEN = Read-Host 'Fine-grained GitHub PAT' -MaskInput
 Import-Module ./ALZ.ARO/ALZ.ARO.psd1 -Force
 ```
 
-The token is limited to one resource owner and the permissions above. The module does not reuse GitHub CLI authentication. **Administration: Read and write** also permits bootstrap teardown to delete the generated repository. See [prerequisites](prerequisites.md) for owner-policy requirements.
-
-!!! tip "Only if you set `self_hosted_runner_enabled`"
-    Give the runners the same token. They exchange it for a short-lived registration token each time one starts, and it is stored in Azure as a secure environment variable rather than in any file:
-
-    ```powershell
-    $env:GITHUB_RUNNER_TOKEN = $env:GITHUB_TOKEN
-    ```
+The token is limited to one resource owner and the permissions above. The module does not reuse GitHub CLI authentication. **Administration: Read and write** also permits bootstrap teardown to delete the generated repository, and lets bootstrap-created runners register themselves. See [prerequisites](prerequisites.md) for owner-policy requirements.
 
 ## 3. Plan and apply bootstrap
 

@@ -43,16 +43,18 @@ The three address ranges must not overlap the cluster virtual network or the hub
 
 ## The registration token
 
-The runners register themselves using a personal access token, which they exchange for a short-lived registration token at startup. Supply it through the environment so it is never written to the configuration file or the generated Terraform variables:
+The runners register themselves using the same fine-grained PAT that bootstrap already requires in `GITHUB_TOKEN`, which they exchange for a short-lived registration token each time one starts. No extra step is needed.
+
+To use a separate credential instead, set `GITHUB_RUNNER_TOKEN` before running bootstrap and it takes precedence:
 
 ```powershell
 $env:GITHUB_RUNNER_TOKEN = Read-Host 'PAT for runner registration' -MaskInput
 ```
 
-The token needs permission to manage runners on the generated repository. It is passed to Azure as a secure environment variable on the container group, so it is not readable from the container's normal environment listing.
+Either way the value reaches Terraform through the environment, so it is never written to the configuration file or the generated variables. It is passed to Azure as a secure environment variable on the container group.
 
 !!! warning "The masked prompt does not mask everywhere"
-    `Read-Host -MaskInput` does not mask in the PowerShell extension terminal in Visual Studio Code. Use a normal PowerShell 7 terminal when entering the token.
+    `Read-Host -MaskInput` does not mask in the PowerShell extension terminal in Visual Studio Code. Use a normal PowerShell 7 terminal when entering a token.
 
 ## Security decisions worth knowing
 

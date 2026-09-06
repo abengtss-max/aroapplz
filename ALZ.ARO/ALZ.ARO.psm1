@@ -262,11 +262,14 @@ function Invoke-AROPreflight {
 
     if ($Config.ContainsKey('self_hosted_runner_enabled') -and [bool]$Config.self_hosted_runner_enabled) {
         # Passed to Terraform through the environment so the runner credential is
-        # never written to the generated tfvars file.
-        if ([string]::IsNullOrWhiteSpace($env:GITHUB_RUNNER_TOKEN)) {
-            throw 'self_hosted_runner_enabled requires GITHUB_RUNNER_TOKEN to be a personal access token the runners can exchange for a registration token. It is read from the environment and never written to disk.'
+        # never written to the generated tfvars file. The bootstrap token already
+        # carries the repository administration permission the runners need, so it
+        # is the default; set GITHUB_RUNNER_TOKEN to use a separate credential.
+        $runnerToken = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_RUNNER_TOKEN)) { $env:GITHUB_RUNNER_TOKEN } else { $env:GITHUB_TOKEN }
+        if ([string]::IsNullOrWhiteSpace($runnerToken)) {
+            throw 'self_hosted_runner_enabled requires GITHUB_RUNNER_TOKEN, or GITHUB_TOKEN, to be a token the runners can exchange for a registration token. It is read from the environment and never written to disk.'
         }
-        $env:TF_VAR_github_runner_token = $env:GITHUB_RUNNER_TOKEN
+        $env:TF_VAR_github_runner_token = $runnerToken
     }
 
     $githubHeaders = @{

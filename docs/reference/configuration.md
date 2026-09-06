@@ -31,7 +31,7 @@ Copy one to the ignored `config/local.json` before editing.
 | `runner_container_instances_subnet_cidr` | Conditional | Subnet for the runner container groups, delegated to Container Instances. Required when `self_hosted_runner_enabled` is true |
 | `runner_private_endpoint_subnet_cidr` | Conditional | Subnet for the state and registry private endpoints. Required when `self_hosted_runner_enabled` is true |
 
-When `self_hosted_runner_enabled` is true, set `GITHUB_RUNNER_TOKEN` in the environment to a personal access token the runners exchange for a registration token. It is never written to the configuration file or the generated Terraform variables. See [self-hosted runners](../operations/self-hosted-runner.md).
+When `self_hosted_runner_enabled` is true, the runners register with the same token as `GITHUB_TOKEN`. Set `GITHUB_RUNNER_TOKEN` only if you want them to use a separate credential. Either way it is read from the environment and never written to the configuration file or the generated Terraform variables. See [self-hosted runners](../operations/self-hosted-runner.md).
 
 Preflight derives `apply_environment_reviewers_enabled` from the GitHub owner plan and writes it only to generated bootstrap input. It is not a user-supplied configuration field. Non-Enterprise owners receive a warning because GitHub does not support the reviewer rule for their generated private repository.
 

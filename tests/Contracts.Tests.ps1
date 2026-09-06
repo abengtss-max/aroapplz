@@ -75,7 +75,8 @@ Describe 'Architecture contracts' {
         $bootstrap | Should -Not -Match 'variable\s+"github_token"'
         # The runner registration token reaches Terraform only through the
         # environment, so it is never written to the generated tfvars file.
-        $module | Should -Match '\$env:TF_VAR_github_runner_token\s*=\s*\$env:GITHUB_RUNNER_TOKEN'
+        $module | Should -Match '\$env:TF_VAR_github_runner_token\s*=\s*\$runnerToken'
+        $module | Should -Match '\$env:GITHUB_RUNNER_TOKEN'
         $module | Should -Not -Match 'github_runner_token\s*=\s*\$Config'
         $runnerVars = Get-Content (Join-Path $root 'bootstrap\modules\runner\variables.tf') -Raw
         $runnerVars | Should -Match 'variable "github_runner_token"[\s\S]{0,120}sensitive\s*=\s*true'
