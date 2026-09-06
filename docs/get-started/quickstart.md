@@ -37,6 +37,15 @@ az provider register `
   --wait
 ```
 
+!!! warning "Continuous Access Evaluation can block the directory lookup"
+    Bootstrap reads the Azure Red Hat OpenShift resource provider service principal from Microsoft Graph. In tenants with Continuous Access Evaluation, the token that plain `az login` caches for Graph can be rejected part way through a run, which surfaces as an authorization or expired token failure on `azuread_service_principal`. Request a Graph-scoped token up front so the cached token is fresh:
+
+    ```powershell
+    az login --tenant <tenant-id> --scope https://graph.microsoft.com/.default
+    ```
+
+    Run this in the same shell you use for `Deploy-AROLandingZone`. If a run fails on the directory lookup, repeat the command and retry; no Azure resources need to be cleaned up first.
+
 Create a dedicated fine-grained PAT rather than reusing an existing GitHub CLI credential:
 
 1. Open [GitHub fine-grained tokens](https://github.com/settings/personal-access-tokens/new).
