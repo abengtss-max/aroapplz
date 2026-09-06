@@ -19,6 +19,18 @@ resource "azurerm_role_assignment" "aro_resource_provider_nsg" {
   principal_type     = "ServicePrincipal"
 }
 
+# In spoke mode the cluster subnets carry a user defined route. The resource
+# provider validates and programs that route table during installation and
+# fails with InvalidResourceProviderPermissions without this grant.
+resource "azurerm_role_assignment" "aro_resource_provider_route_table" {
+  provider           = azurerm.workload
+  count              = local.is_spoke ? 1 : 0
+  scope              = azurerm_route_table.egress[0].id
+  role_definition_id = "/subscriptions/${var.workload_subscription_id}/providers/Microsoft.Authorization/roleDefinitions/42f3c60f-e7b1-46d7-ba56-6de681664342"
+  principal_id       = var.aro_resource_provider_object_id
+  principal_type     = "ServicePrincipal"
+}
+
 resource "azurerm_redhat_openshift_cluster" "aro" {
   provider            = azurerm.workload
   name                = var.cluster_name
@@ -85,6 +97,7 @@ resource "azurerm_redhat_openshift_cluster" "aro" {
     azurerm_role_assignment.operator_nsg,
     azurerm_role_assignment.aro_resource_provider_network,
     azurerm_role_assignment.aro_resource_provider_nsg,
+    azurerm_role_assignment.aro_resource_provider_route_table,
     azurerm_subnet_network_security_group_association.control_plane,
     azurerm_subnet_network_security_group_association.worker,
     azurerm_subnet_route_table_association.control_plane,
