@@ -78,6 +78,16 @@ function Assert-AROConfig {
             if ([string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "front_door mode requires '$name'." }
         }
     }
+    $customDomain = [string]$Config.front_door_custom_domain
+    if (-not [string]::IsNullOrWhiteSpace($customDomain)) {
+        if ($Config.ingress_mode -ne 'front_door') { throw "front_door_custom_domain requires ingress_mode 'front_door'." }
+        # Azure rejects an uppercase custom domain, and DNS is case insensitive, so normalise instead of failing.
+        $customDomain = $customDomain.Trim().ToLowerInvariant()
+        if ($customDomain -cnotmatch '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$') {
+            throw "front_door_custom_domain must be a fully qualified domain name, for example 'aro.contoso.com'."
+        }
+        $Config.front_door_custom_domain = $customDomain
+    }
     $containerRegistryEnabled = -not $Config.ContainsKey('container_registry_enabled') -or [bool]$Config.container_registry_enabled
     $keyVaultEnabled = -not $Config.ContainsKey('key_vault_enabled') -or [bool]$Config.key_vault_enabled
     if (($containerRegistryEnabled -or $keyVaultEnabled) -and [string]::IsNullOrWhiteSpace([string]$Config.private_endpoint_subnet_cidr)) {

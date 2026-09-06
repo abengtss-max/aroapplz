@@ -51,6 +51,7 @@ For `standalone`, the empty connectivity subscription value is omitted from gene
 | `private_endpoint_subnet_cidr` | Supporting services only | Subnet holding private endpoints for the registry and vault. Required unless both are disabled |
 | `front_door_subnet_cidr` | Front Door only | Subnet holding the Private Link Service NAT addresses |
 | `front_door_backend_host_name` | Front Door only | OpenShift application hostname used as the Front Door origin |
+| `front_door_custom_domain` | No | Public hostname served by Front Door with a free managed certificate. Empty serves only the generated `azurefd.net` endpoint, and the domain can be added later without redeploying |
 | `container_registry_enabled` | No | Create a private Container Registry. Default `true` |
 | `key_vault_enabled` | No | Create a private Key Vault. Default `true` |
 | `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |

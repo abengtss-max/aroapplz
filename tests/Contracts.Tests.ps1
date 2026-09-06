@@ -27,6 +27,19 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'resource "azurerm_virtual_network_peering" "aro_to_runner"'
         $workload | Should -Match 'resource "azurerm_virtual_network_peering" "runner_to_aro"'
     }
+    It 'offers an optional Front Door custom domain that keeps the generated endpoint serving' {
+        $workload | Should -Match 'resource "azurerm_cdn_frontdoor_custom_domain" "aro"'
+        $workload | Should -Match 'certificate_type\s*=\s*"ManagedCertificate"'
+        $workload | Should -Match 'link_to_default_domain\s*=\s*true'
+        foreach ($template in @('standalone', 'spoke')) {
+            $config = Get-Content (Join-Path $root "config\$template.json") -Raw | ConvertFrom-Json
+            $config.PSObject.Properties.Name | Should -Contain 'front_door_custom_domain'
+        }
+    }
+    It 'protects the custom domain with the same firewall policy as the endpoint' {
+        $workload | Should -Match 'dynamic "domain"'
+        $workload | Should -Match 'for_each = azurerm_cdn_frontdoor_custom_domain\.aro'
+    }
     It 'uses managed identities for pipelines and the ARO cluster' {
         $bootstrap | Should -Match 'resource "azurerm_user_assigned_identity" "pipeline"'
         $workload | Should -Match 'platform_workload_identity_profile'
