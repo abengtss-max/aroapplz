@@ -297,6 +297,36 @@ function Invoke-AROPreflight {
     }
     $githubOwner = $githubOwnerResponse.Content | ConvertFrom-Json
     $Config.github_owner_id = [string]$githubOwner.id
+
+    # A fine-grained token grants every permission separately, and GitHub only
+    # reveals which one is missing in a response header on the call that fails.
+    # Probe the surfaces bootstrap uses so all of them are reported at once
+    # rather than one per failed apply, each leaving partial state behind.
+    $repositoryPath = "$($Config.github_organization)/$($Config.github_repository)"
+    $repositoryProbe = Invoke-WebRequest -Uri "https://api.github.com/repos/$repositoryPath" -Headers $githubHeaders -SkipHttpErrorCheck
+    if ([int]$repositoryProbe.StatusCode -eq 200) {
+        $permissionProbes = @(
+            @{ Name = 'repository files'; Url = "https://api.github.com/repos/$repositoryPath/contents/README.md" }
+            @{ Name = 'environment variables'; Url = "https://api.github.com/repos/$repositoryPath/environments/plan/variables" }
+            @{ Name = 'Actions variables'; Url = "https://api.github.com/repos/$repositoryPath/actions/variables" }
+            @{ Name = 'workflow dispatch'; Url = "https://api.github.com/repos/$repositoryPath/actions/workflows" }
+        )
+        $missingPermissions = [ordered]@{}
+        foreach ($permissionProbe in $permissionProbes) {
+            $probeResponse = Invoke-WebRequest -Uri $permissionProbe.Url -Headers $githubHeaders -SkipHttpErrorCheck
+            if ([int]$probeResponse.StatusCode -ne 403) { continue }
+            $requiredPermission = 'unknown'
+            if ($probeResponse.Headers.ContainsKey('x-accepted-github-permissions')) {
+                $requiredPermission = ($probeResponse.Headers['x-accepted-github-permissions'] -join ', ')
+            }
+            if (-not $missingPermissions.Contains($requiredPermission)) { $missingPermissions[$requiredPermission] = @() }
+            $missingPermissions[$requiredPermission] += $permissionProbe.Name
+        }
+        if ($missingPermissions.Count -gt 0) {
+            $permissionDetail = ($missingPermissions.Keys | ForEach-Object { "$_ (needed for $($missingPermissions[$_] -join ', '))" }) -join '; '
+            throw "The GitHub token is missing permissions: $permissionDetail. GitHub reports only 'Resource not accessible by personal access token' when one is absent. Add them at https://github.com/settings/personal-access-tokens and retry; the token value stays the same, so no regeneration is needed."
+        }
+    }
     if ($githubOwner.type -eq 'User' -and $githubUser.login -ne $githubOwner.login) {
         throw "A personal repository can only be bootstrapped under the authenticated GitHub user '$($githubUser.login)', not '$($githubOwner.login)'."
     }
