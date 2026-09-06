@@ -19,7 +19,20 @@ notepad ./config/local.json
 
 Replace every placeholder in `config/local.json`. Keep secrets out of this file. For a first deployment, use `standalone` and leave `aro_version` empty so the module selects an available version.
 
-Set `runner_label` to the GitHub runner your organization already operates. The accelerator selects a runner; it never creates, registers, or removes one.
+Set `runner_label` to the GitHub runner your organization already operates.
+
+!!! tip "No runner yet? Let bootstrap create one"
+    Set these five values instead, and bootstrap creates ephemeral GitHub runners on Azure Container Instances as part of step 3. Everything after that is identical.
+
+    ```json
+    "runner_label": "self-hosted",
+    "self_hosted_runner_enabled": true,
+    "runner_virtual_network_cidr": "10.60.0.0/24",
+    "runner_container_instances_subnet_cidr": "10.60.0.0/26",
+    "runner_private_endpoint_subnet_cidr": "10.60.0.64/26"
+    ```
+
+    The three ranges must not overlap `aro_vnet_cidr` or your hub. Building the runner image adds a few minutes to step 3. See [self-hosted runners](../operations/self-hosted-runner.md).
 
 !!! warning "After clean-slate recreation"
     Deleting and recreating bootstrap invalidates any repository-scoped runner registration and disconnects a private endpoint that targeted the deleted state storage account, even though the storage account name is deterministic. Restore that connectivity and confirm the runner is online before deploying ARO.
@@ -71,6 +84,13 @@ Import-Module ./ALZ.ARO/ALZ.ARO.psd1 -Force
 ```
 
 The token is limited to one resource owner and the permissions above. The module does not reuse GitHub CLI authentication. **Administration: Read and write** also permits bootstrap teardown to delete the generated repository. See [prerequisites](prerequisites.md) for owner-policy requirements.
+
+!!! tip "Only if you set `self_hosted_runner_enabled`"
+    Give the runners the same token. They exchange it for a short-lived registration token each time one starts, and it is stored in Azure as a secure environment variable rather than in any file:
+
+    ```powershell
+    $env:GITHUB_RUNNER_TOKEN = $env:GITHUB_TOKEN
+    ```
 
 ## 3. Plan and apply bootstrap
 
