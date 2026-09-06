@@ -56,6 +56,11 @@ A GitHub Actions runner is an external prerequisite, exactly like the hub. Provi
 
 The runner must reach the Terraform state storage endpoint. Where policy denies public network access on storage, a GitHub-hosted runner cannot reach the backend, so the runner needs private network connectivity to it.
 
+The runner also has to satisfy two requirements that are easy to miss on a self-managed host:
+
+- **Azure CLI must be installed.** `azure/login` performs `az login` internally, so a runner image without the Azure CLI fails at the sign-in step even though the workflow itself never calls `az`.
+- **The runner must survive a long job.** Creating an ARO cluster takes roughly 45 to 60 minutes in a single Terraform apply. Anything that restarts the runner service mid-job cancels the deployment and leaves the cluster still installing while Terraform loses track of it. On Ubuntu hosts, `unattended-upgrades` combined with `needrestart` will do exactly this when a library is patched. Either exclude the runner service from automatic restarts or schedule patching outside deployment windows.
+
 ## Extra requirements for `spoke`
 
 `spoke` requires an existing hub VNet and an existing firewall or NVA next hop. Obtain:

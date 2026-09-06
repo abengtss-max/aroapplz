@@ -74,17 +74,17 @@ The token is limited to one resource owner and the permissions above. The module
 
 ## 3. Plan and apply bootstrap
 
-Create and inspect the plan:
+Create and inspect the plan. Pass `-InputConfigPath` so the file edited in step 1 is used; without it the command starts an interactive wizard and ignores that file:
 
 ```powershell
-Deploy-AROLandingZone -BootstrapAction plan
+Deploy-AROLandingZone -InputConfigPath ./config/local.json -BootstrapAction plan
 terraform -chdir=bootstrap/alz/github show bootstrap.tfplan
 ```
 
 Apply only after confirming the GitHub owner, repository, subscriptions, and bootstrap resources:
 
 ```powershell
-Deploy-AROLandingZone -BootstrapAction apply
+Deploy-AROLandingZone -InputConfigPath ./config/local.json -BootstrapAction apply
 ```
 
 Enter `Y` at the PowerShell confirmation prompt. This creates the Azure state platform, managed identities, OIDC configuration, and generated GitHub repository. It does **not** deploy ARO automatically.
@@ -96,6 +96,19 @@ The plan in step 3 checks the workload subscription for policy that blocks ARO. 
 Have a platform or governance owner run those printed commands now. They must complete **before** the workload apply in step 5, otherwise ARO fails partway through with a generic `InternalServerError`.
 
 If nothing was printed, skip to step 5. Background and the manual discovery steps are in [Deploying into an Azure Landing Zone](../governance/azure-landing-zone.md).
+
+!!! warning "`spoke` mode only: grant the pipeline identities access to the hub"
+    Spoke mode writes a peering on **both** sides, so the hub side is created by the workload pipeline in a subscription the accelerator does not own. Bootstrap cannot grant this for you. A connectivity owner must run the following after step 3, using the identities that bootstrap created, otherwise the apply in step 5 fails with `AuthorizationFailed` on `virtualNetworkPeerings/write`:
+
+    ```powershell
+    $hub = '<hub-vnet-resource-id>'
+    az role assignment create --assignee-object-id <id-<service>-<env>-apply principal id> `
+      --assignee-principal-type ServicePrincipal --role 'Network Contributor' --scope $hub
+    az role assignment create --assignee-object-id <id-<service>-<env>-plan principal id> `
+      --assignee-principal-type ServicePrincipal --role Reader --scope $hub
+    ```
+
+    See [networking](../concepts/networking.md) for why the grant is scoped to the hub virtual network rather than the resource group.
 
 ## 5. Deploy ARO
 
