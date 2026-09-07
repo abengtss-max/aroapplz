@@ -1,0 +1,120 @@
+module.github.github_repository.workload: Refreshing state... [id=aroapp-fd]
+module.github.github_branch_default.workload: Refreshing state... [id=aroapp-fd]
+module.github.github_repository_environment.apply: Refreshing state... [id=aroapp-fd:apply]
+module.github.github_repository_vulnerability_alerts.workload: Refreshing state... [id=1359240310]
+module.github.github_repository_environment.plan: Refreshing state... [id=aroapp-fd:plan]
+module.azure.data.azuread_service_principal.aro_resource_provider: Reading...
+module.azure.data.azuread_service_principal.aro_resource_provider: Still reading... [10s elapsed]
+module.azure.azurerm_resource_group.state: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap]
+module.azure.data.azurerm_subscription.workload: Reading...
+module.azure.data.azurerm_subscription.workload: Read complete after 1s [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700]
+module.azure.azurerm_user_assigned_identity.pipeline["plan"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-aroapp-fd-plan]
+module.azure.azapi_resource.state: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf]
+module.azure.azurerm_user_assigned_identity.pipeline["apply"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-aroapp-fd-apply]
+module.azure.azurerm_role_assignment.apply_contributor: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/providers/Microsoft.Authorization/roleAssignments/583606c8-43a0-2610-a8b6-c73aab0fd371]
+module.azure.azurerm_role_assignment.apply_rbac_administrator: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/providers/Microsoft.Authorization/roleAssignments/1341422a-cb58-905b-f000-b430116c0af8]
+module.github.github_actions_environment_variable.client_id["plan"]: Refreshing state... [id=aroapp-fd:plan:AZURE_CLIENT_ID]
+module.github.github_actions_environment_variable.client_id["apply"]: Refreshing state... [id=aroapp-fd:apply:AZURE_CLIENT_ID]
+module.azure.azurerm_role_assignment.plan_reader: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/providers/Microsoft.Authorization/roleAssignments/958c2c36-5532-96a2-5747-169d5df977be]
+azurerm_federated_identity_credential.github["apply"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-aroapp-fd-apply/federatedIdentityCredentials/github-apply]
+azurerm_federated_identity_credential.github["plan"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-aroapp-fd-plan/federatedIdentityCredentials/github-plan]
+module.azure.azapi_update_resource.blob_service: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf/blobServices/default]
+module.azure.azapi_resource.state_container: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf/blobServices/default/containers/tfstate]
+module.github.github_actions_variable.repository["TF_BACKEND_CONTAINER"]: Refreshing state... [id=aroapp-fd:TF_BACKEND_CONTAINER]
+module.azure.azurerm_role_assignment.state["apply"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf/blobServices/default/containers/tfstate/providers/Microsoft.Authorization/roleAssignments/5f4d50da-833f-8724-387c-21a8b5c1a4f8]
+module.azure.azurerm_role_assignment.state["plan"]: Refreshing state... [id=/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf/blobServices/default/containers/tfstate/providers/Microsoft.Authorization/roleAssignments/7677f2b5-2416-09f6-8842-d0c61f980cf1]
+module.github.github_actions_variable.repository["AZURE_TENANT_ID"]: Refreshing state... [id=aroapp-fd:AZURE_TENANT_ID]
+module.github.github_actions_variable.repository["AZURE_SUBSCRIPTION_ID"]: Refreshing state... [id=aroapp-fd:AZURE_SUBSCRIPTION_ID]
+module.github.github_actions_variable.repository["TF_BACKEND_RESOURCE_GROUP"]: Refreshing state... [id=aroapp-fd:TF_BACKEND_RESOURCE_GROUP]
+module.github.github_actions_variable.repository["TF_BACKEND_STORAGE_ACCOUNT"]: Refreshing state... [id=aroapp-fd:TF_BACKEND_STORAGE_ACCOUNT]
+module.github.github_actions_variable.repository["TF_BACKEND_KEY"]: Refreshing state... [id=aroapp-fd:TF_BACKEND_KEY]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform planned the following actions, but then encountered a problem:
+
+  # module.azure.azapi_resource.state will be updated in-place
+  ~ resource "azapi_resource" "state" {
+      ~ body                      = {
+          ~ properties = {
+              ~ publicNetworkAccess      = "Disabled" -> "Enabled"
+                # (5 unchanged attributes hidden)
+            }
+            # (2 unchanged attributes hidden)
+        }
+        id                        = "/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf"
+        name                      = "staroappfdtf"
+      ~ output                    = {
+          - id         = "/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf"
+          - properties = {
+              - creationTime               = "2026-09-06T14:52:22.0411702Z"
+              - encryption                 = {
+                  - services = {
+                      - blob = {
+                          - lastEnabledTime = "2026-09-06T14:52:22.1629962Z"
+                        }
+                      - file = {
+                          - lastEnabledTime = "2026-09-06T14:52:22.1629962Z"
+                        }
+                    }
+                }
+              - networkAcls                = {
+                  - resourceAccessRules = [
+                      - {},
+                    ]
+                }
+              - primaryEndpoints           = {
+                  - blob  = "https://staroappfdtf.blob.core.windows.net/"
+                  - dfs   = "https://staroappfdtf.dfs.core.windows.net/"
+                  - file  = "https://staroappfdtf.file.core.windows.net/"
+                  - queue = "https://staroappfdtf.queue.core.windows.net/"
+                  - table = "https://staroappfdtf.table.core.windows.net/"
+                  - web   = "https://staroappfdtf.z1.web.core.windows.net/"
+                }
+              - primaryLocation            = "swedencentral"
+              - privateEndpointConnections = [
+                  - {
+                      - id         = "/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Storage/storageAccounts/staroappfdtf/privateEndpointConnections/staroappfdtf.94289ad3-358c-44f1-a676-af2609c1d8b3"
+                      - name       = "staroappfdtf.94289ad3-358c-44f1-a676-af2609c1d8b3"
+                      - properties = {
+                          - privateEndpoint   = {
+                              - id = "/subscriptions/57bdcaf9-eabe-4565-a3e4-d2c1557ce700/resourceGroups/rg-aroapp-fd-bootstrap/providers/Microsoft.Network/privateEndpoints/pe-aroapp-fd-state-blob"
+                            }
+                          - provisioningState = "Succeeded"
+                        }
+                      - type       = "Microsoft.Storage/storageAccounts/privateEndpointConnections"
+                    },
+                ]
+              - provisioningState          = "Succeeded"
+              - statusOfPrimary            = "available"
+            }
+          - sku        = {
+              - tier = "Standard"
+            }
+          - tags       = {
+              - accelerator = "ALZ.ARO"
+              - managed_by  = "terraform"
+            }
+          - type       = "Microsoft.Storage/storageAccounts"
+        } -> (known after apply)
+        tags                      = {
+            "accelerator" = "ALZ.ARO"
+            "managed_by"  = "terraform"
+        }
+        # (7 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Error: Listing service principals for filter "appId eq 'f1dd0a37-89c6-4e07-bcd1-ffd3d43d8875'"
+
+  with module.azure.data.azuread_service_principal.aro_resource_provider,
+  on ..\..\modules\azure\main.tf line 5, in data "azuread_service_principal" "aro_resource_provider":
+   5: data "azuread_service_principal" "aro_resource_provider" {
+
+unexpected status 401 (401 Unauthorized) with error:
+InvalidAuthenticationToken: Continuous access evaluation resulted in
+challenge with result: InteractionRequired and code:
+TokenCreatedWithOutdatedPolicies

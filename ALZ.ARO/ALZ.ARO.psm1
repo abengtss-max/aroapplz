@@ -456,7 +456,9 @@ function New-BootstrapInput {
         $relative -notmatch '(^|/)\.terraform/' -and $relative -notmatch '\.(tfplan|log)$'
     } | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($templateRoot, $_.FullName).Replace('\','/')
-        $files[$relative] = Get-Content -LiteralPath $_.FullName -Raw
+        # A checkout on Windows carries CRLF, and bash rejects the carriage return inside a
+        # provisioner heredoc, so publish every file with LF regardless of the authoring platform.
+        $files[$relative] = (Get-Content -LiteralPath $_.FullName -Raw) -replace "`r`n", "`n"
     }
     if ($Config.runner_label -ne 'ubuntu-latest') {
         foreach ($workflow in @('.github/workflows/ci.yml', '.github/workflows/cd.yml')) {

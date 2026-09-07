@@ -40,6 +40,10 @@ Describe 'Architecture contracts' {
         $workload | Should -Match 'dynamic "domain"'
         $workload | Should -Match 'for_each = azurerm_cdn_frontdoor_custom_domain\.aro'
     }
+    It 'publishes files with LF so shell provisioners run on Linux runners' {
+        $module = Get-Content (Join-Path $root 'ALZ.ARO\ALZ.ARO.psm1') -Raw
+        $module | Should -Match '-replace "`r`n", "`n"'
+    }
     It 'uses managed identities for pipelines and the ARO cluster' {
         $bootstrap | Should -Match 'resource "azurerm_user_assigned_identity" "pipeline"'
         $workload | Should -Match 'platform_workload_identity_profile'
