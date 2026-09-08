@@ -10,9 +10,13 @@ Both `standalone` and `spoke` create a new ARO VNet and both ARO subnets. The ac
 
 `spoke` requires an existing hub VNet and existing firewall/NVA private IP. aroapplz creates connection resources but no hub, firewall, NVA, DNS platform, or route appliance.
 
-## Front Door integration is a contract
+## Front Door has no public custom-domain automation for DNS
 
-`front_door` records follow-on integration intent only. `application_gateway` provisions a WAF_v2 gateway with an HTTPS frontend, private ARO ingress backend, health probe, NSG, and diagnostics. It requires a dedicated subnet, backend hostname, and protected PFX certificate inputs at runtime. The workload creates private ARO API and ingress profiles.
+`front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. The default `*.azurefd.net` endpoint works with no certificate input because the ARO ingress certificate is publicly trusted.
+
+`front_door_custom_domain` creates the custom domain with an Azure-managed certificate, but the accelerator does not own your DNS zone. You must publish the `_dnsauth` TXT and the CNAME records yourself before the domain validates. See the quickstart.
+
+`application_gateway` provisions a WAF_v2 gateway with an HTTPS frontend, private ARO ingress backend, health probe, NSG, and diagnostics. It requires a dedicated subnet, backend hostname, and protected PFX certificate inputs at runtime. The workload creates private ARO API and ingress profiles.
 
 ## Apply role is subscription-scoped
 
@@ -37,6 +41,25 @@ Bootstrap apply creates the delivery platform and generated repository only. It 
 ## Local bootstrap state
 
 Bootstrap state starts locally. Secure and manage it according to organizational policy; do not commit it.
+
+Each environment gets its own Terraform workspace named `<service_name>-<environment_name>`, so several environments can share one clone without overwriting each other. A pre-workspace state file in the clone is adopted into the matching workspace on first run, and adoption is refused if that state belongs to a different repository owner.
+
+## A failed ARO create must be deleted before retrying
+
+If ARO cluster creation fails part-way, Azure leaves the cluster behind in `Failed` state but Terraform does not record it in state. Every later apply then stops with:
+
+```
+Error: a resource with the ID ".../openShiftClusters/<cluster>" already exists -
+to be managed via Terraform this resource needs to be imported into the State
+```
+
+Delete the failed cluster, then re-run the workflow:
+
+```bash
+az aro delete -n <cluster> -g <aro-resource-group> --yes
+```
+
+The CLI prints a list of `id-<cluster>-*` managed identities and suggests deleting them. **Do not delete them.** Terraform owns those identities (`azurerm_user_assigned_identity.aro`); removing them puts state out of sync and forces a rebuild of their role assignments.
 
 ## Cost estimation is not implemented
 

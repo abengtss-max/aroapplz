@@ -20,6 +20,40 @@ Describe 'ALZ.ARO module' {
     }
 }
 
+Describe 'Bootstrap workspace isolation' {
+    BeforeAll { Import-Module $manifest -Force }
+
+    It 'derives one workspace per service and environment' {
+        InModuleScope 'ALZ.ARO' {
+            Get-AROBootstrapWorkspaceName -ServiceName 'aro' -EnvironmentName 'dev' | Should -Be 'aro-dev'
+            Get-AROBootstrapWorkspaceName -ServiceName 'aro' -EnvironmentName 'prod' | Should -Be 'aro-prod'
+            Get-AROBootstrapWorkspaceName -ServiceName 'ARO' -EnvironmentName 'Dev' | Should -Be 'aro-dev'
+            Get-AROBootstrapWorkspaceName -ServiceName 'my_app' -EnvironmentName 'test' | Should -Be 'my-app-test'
+        }
+    }
+
+    It 'keeps environments apart' {
+        InModuleScope 'ALZ.ARO' {
+            $dev = Get-AROBootstrapWorkspaceName -ServiceName 'aro' -EnvironmentName 'dev'
+            $test = Get-AROBootstrapWorkspaceName -ServiceName 'aro' -EnvironmentName 'test'
+            $dev | Should -Not -Be $test
+        }
+    }
+
+    It 'refuses to adopt state that belongs to another environment' {
+        InModuleScope 'ALZ.ARO' {
+            $root = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid())
+            New-Item -ItemType Directory -Path $root | Out-Null
+            @{ resources = @(@{ type = 'github_repository'; instances = @(@{ attributes = @{ name = 'aroapp-prod' } }) }) } |
+                ConvertTo-Json -Depth 8 | Set-Content (Join-Path $root 'terraform.tfstate')
+            Mock Invoke-NativeCommand { 'default' }
+            { Use-AROBootstrapWorkspace -BootstrapRoot $root -Config @{ service_name = 'aroapp'; environment_name = 'dev'; github_repository = 'aroapp-dev' } } |
+                Should -Throw '*belongs to ''aroapp-prod''*'
+            Remove-Item $root -Recurse -Force
+        }
+    }
+}
+
 Describe 'GitHub token permission probe' {
     BeforeAll { Import-Module $manifest -Force }
 

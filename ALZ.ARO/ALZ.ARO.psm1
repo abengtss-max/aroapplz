@@ -429,6 +429,49 @@ function Get-MissingGitHubPermission {
     return ($missingPermissions.Keys | ForEach-Object { "$_ (needed for $($missingPermissions[$_] -join ', '))" }) -join '; '
 }
 
+function Get-AROBootstrapWorkspaceName {
+    param([Parameter(Mandatory)][string]$ServiceName, [Parameter(Mandatory)][string]$EnvironmentName)
+
+    return (("$ServiceName-$EnvironmentName").ToLowerInvariant() -replace '[^a-z0-9-]', '-')
+}
+
+function Use-AROBootstrapWorkspace {
+    # Bootstrap state is local to the clone. Without a workspace per environment, a second
+    # environment loads the first one's state and plans to rename or destroy its repository,
+    # identities, and state storage.
+    param([Parameter(Mandatory)][string]$BootstrapRoot, [Parameter(Mandatory)][hashtable]$Config)
+
+    $workspace = Get-AROBootstrapWorkspaceName -ServiceName $Config.service_name -EnvironmentName $Config.environment_name
+    $existing = @(Invoke-NativeCommand terraform @('workspace', 'list')) -split "`n" | ForEach-Object { $_.Trim().TrimStart('*').Trim() } | Where-Object { $_ }
+
+    if ($workspace -in $existing) {
+        [void](Invoke-NativeCommand terraform @('workspace', 'select', $workspace))
+        Write-Host "Bootstrap workspace: $workspace"
+        return
+    }
+
+    # A clone bootstrapped before workspaces existed keeps its state in the default workspace.
+    $defaultState = Join-Path $BootstrapRoot 'terraform.tfstate'
+    $adopt = $false
+    if (Test-Path -LiteralPath $defaultState) {
+        $state = Get-Content -LiteralPath $defaultState -Raw | ConvertFrom-Json
+        if (@($state.resources).Count -gt 0) {
+            $owner = @($state.resources | Where-Object { $_.type -eq 'github_repository' } | ForEach-Object { $_.instances.attributes.name }) | Select-Object -First 1
+            if ($owner -and $owner -ne $Config.github_repository) {
+                throw "The bootstrap state in this clone belongs to '$owner'. Use a separate clone for '$($Config.github_repository)', because moving it would destroy the other environment."
+            }
+            $adopt = $true
+        }
+    }
+
+    [void](Invoke-NativeCommand terraform @('workspace', 'new', $workspace))
+    if ($adopt) {
+        Move-Item -LiteralPath $defaultState -Destination (Join-Path $BootstrapRoot "terraform.tfstate.d\$workspace\terraform.tfstate") -Force
+        Write-Host "Adopted the existing bootstrap state into workspace '$workspace'."
+    }
+    Write-Host "Bootstrap workspace: $workspace"
+}
+
 function Resolve-AROVersion {
     param([Parameter(Mandatory)][hashtable]$Config)
 
@@ -570,6 +613,7 @@ function Deploy-AROLandingZone {
     Push-Location $bootstrapRoot
     try {
         [void](Invoke-NativeCommand terraform @('init','-input=false'))
+        Use-AROBootstrapWorkspace -BootstrapRoot $bootstrapRoot -Config $config
         [void](Invoke-NativeCommand terraform @('validate','-no-color'))
         $planName = if ($BootstrapAction -eq 'destroy') { 'bootstrap-destroy.tfplan' } else { 'bootstrap.tfplan' }
         $planPath = Join-Path $bootstrapRoot $planName

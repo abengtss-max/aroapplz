@@ -111,7 +111,7 @@ Have a platform or governance owner run those printed commands now. They must co
 If nothing was printed, skip to step 5. Background and the manual discovery steps are in [Deploying into an Azure Landing Zone](../governance/azure-landing-zone.md).
 
 !!! warning "`spoke` mode only: grant the pipeline identities access to the hub"
-    Spoke mode writes a peering on **both** sides, so the hub side is created by the workload pipeline in a subscription the accelerator does not own. Bootstrap cannot grant this for you. A connectivity owner must run the following after step 3, using the identities that bootstrap created, otherwise the apply in step 5 fails with `AuthorizationFailed` on `virtualNetworkPeerings/write`:
+    Spoke mode writes a peering on **both** sides, so the hub side is created by the workload pipeline in a subscription the accelerator does not own. Bootstrap cannot grant this for you. A connectivity owner must run the following after step 3, using the identities that bootstrap created:
 
     ```powershell
     $hub = '<hub-vnet-resource-id>'
@@ -120,6 +120,13 @@ If nothing was printed, skip to step 5. Background and the manual discovery step
     az role assignment create --assignee-object-id <id-<service>-<env>-plan principal id> `
       --assignee-principal-type ServicePrincipal --role Reader --scope $hub
     ```
+
+    **Grant both identities.** They fail at different times, so granting only one looks like success at first:
+
+    | Missing grant | Symptom |
+    | --- | --- |
+    | apply / `Network Contributor` | The **first** apply fails with `AuthorizationFailed` on `virtualNetworkPeerings/write`. |
+    | plan / `Reader` | The first run still succeeds, because the hub peering does not exist yet and there is nothing to read. Every run **after** that fails in the plan job with `AuthorizationFailed` on `virtualNetworkPeerings/read`. |
 
     See [networking](../concepts/networking.md) for why the grant is scoped to the hub virtual network rather than the resource group.
 
