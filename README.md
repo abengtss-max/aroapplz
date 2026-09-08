@@ -17,7 +17,7 @@ No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` 
 
 ## Ingress status
 
-`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door is a follow-on integration contract. Application Gateway provisions a dedicated subnet, public IP, WAF_v2 gateway, private ARO ingress backend, HTTPS probe, and Log Analytics diagnostics. The ARO API and ingress profiles remain private.
+`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door provisions a Premium profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. Application Gateway provisions a dedicated subnet, public IP, WAF_v2 gateway, private ARO ingress backend, HTTPS probe, and Log Analytics diagnostics. The ARO API and ingress profiles remain private.
 
 ## Start
 

@@ -124,11 +124,11 @@ ARO also uses managed identities: one cluster identity and eight platform worklo
 
 | Value | Current behavior |
 | --- | --- |
-| `none` | Default. No external ingress integration contract is selected. |
-| `front_door` | Records a follow-on integration contract only; Front Door is not provisioned. |
+| `none` | Default. No edge service is provisioned; the cluster is reachable only from connected networks. |
+| `front_door` | Provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress. The Private Link connection is approved automatically. |
 | `application_gateway` | Provisions WAF_v2, dedicated subnet, private ARO backend, HTTPS probe, and diagnostics. |
 
-The ARO API and ingress profiles created by the workload are private. Operators own Front Door follow-on integration and Application Gateway DNS/certificate lifecycle.
+The ARO API and ingress profiles created by the workload are private. Front Door reaches them over Private Link, so no public cluster endpoint is created. Operators own DNS and certificate lifecycle for custom domains on either ingress mode.
 
 ## Cost and responsibility
 

@@ -93,7 +93,7 @@ Network Contributor is used because peering needs `virtualNetworkPeerings/write`
 
 ## Ingress and edge routing
 
-Private ARO ingress does not make an application publicly reachable. The current `front_door` and `application_gateway` values are integration contracts only; operators must design, provision, and validate any edge service, origin connectivity, certificates, DNS, probes, and security policy.
+Private ARO ingress does not make an application publicly reachable on its own. `front_door` and `application_gateway` provision the edge service and connect it to the private ingress, but they do not finish the job: you still own DNS for custom domains, certificates where a managed certificate is not used, the application and its routes, and the security policy you want on the WAF. A cluster with no matching route returns `503` through the edge exactly as it does internally.
 
 ## State storage connectivity
 

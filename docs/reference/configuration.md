@@ -112,7 +112,7 @@ In `spoke` mode the cluster is created with `outbound_type = UserDefinedRouting`
 
 | Value | Implementation |
 | --- | --- |
-| `none` | Default; no follow-on edge contract selected |
+| `none` | Default; no edge service is provisioned |
 | `front_door` | Provisions Premium Front Door, WAF, and a Private Link Service in front of the private ARO ingress |
 | `application_gateway` | Provisions public WAF_v2 with a private ARO ingress backend and diagnostics |
 
@@ -158,19 +158,26 @@ for every domain it manages.
 `service_name` and `environment_name` drive every generated name, so `dev`, `test`, and `prod` can
 target different subscriptions and different repositories from the same configuration shape.
 
-Bootstrap state is local to the clone it runs from, and every run uses the same
-`bootstrap/alz/github/terraform.tfstate`. Running a second environment from the same clone therefore
-loads the first environment's state and plans to rename or destroy its repository, identities, and
-state storage. Give each environment its own clone until state isolation is built in:
+Bootstrap state is local to the clone it runs from. Each environment gets its own Terraform workspace,
+named `<service_name>-<environment_name>`, so several environments can share one clone without
+overwriting each other. The workspace is selected automatically on every run and the name is printed
+as `Bootstrap workspace: <name>`; confirm it matches the environment you intend to change before
+approving a plan.
+
+A clone that was bootstrapped before workspaces existed keeps its state in the default workspace. That
+state is adopted into the matching workspace on the next run. Adoption is refused when the state
+belongs to a different generated repository, because moving it would destroy the other environment.
 
 ```text
-aroapplz-dev/   config/local.json -> service_name aro, environment_name dev
-aroapplz-test/  config/local.json -> service_name aro, environment_name test
-aroapplz-prod/  config/local.json -> service_name aro, environment_name prod
+aroapplz/
+  config/dev.json   -> workspace aro-dev
+  config/test.json  -> workspace aro-test
+  config/prod.json  -> workspace aro-prod
 ```
 
-Keep each clone, its `config/local.json`, and its local state for as long as the environment exists;
-the bootstrap cannot be destroyed without them.
+Separate clones still work and remain a reasonable choice when you want hard separation of credentials
+or state files. Keep each environment's configuration and its local state for as long as the
+environment exists; the bootstrap cannot be destroyed without them.
 
 ## Repository layout
 

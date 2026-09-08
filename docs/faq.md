@@ -18,7 +18,7 @@ The implemented ARO API and ingress profiles are private. Any approved access pa
 
 ## Does it deploy Front Door or Application Gateway?
 
-`front_door` is a follow-on integration contract. `application_gateway` provisions a WAF_v2 gateway with public frontend, private ARO ingress backend, HTTPS health probe, and Log Analytics diagnostics. `none` is the default.
+`front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. `application_gateway` provisions a WAF_v2 gateway with public frontend, private ARO ingress backend, HTTPS health probe, and Log Analytics diagnostics. `none` is the default.
 
 ## Is Azure authentication secretless?
 

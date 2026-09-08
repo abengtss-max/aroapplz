@@ -41,7 +41,9 @@ OIDC plan/apply identities have no Azure client secret. Review their federated c
 
 ## Ingress follow-on work
 
-`front_door` and `application_gateway` do not provision complete ingress. Operators own design and operations for edge resources, certificates, DNS, origin reachability, health probes, security policy, and observability. Application Gateway remains preview contract-only in this release.
+`front_door` and `application_gateway` provision the edge service, but they do not deliver a working application on their own. Operators still own the workload and its routes, DNS for custom domains, certificates where a managed certificate is not used, security policy on the WAF, and observability.
+
+Two failure modes are worth recognising. A route whose hostname does not match the configured backend host returns `503` through the edge, and it returns `503` internally too, which is how you tell it apart from an edge fault. Images pulled from a registry the egress firewall does not allow leave pods in `ImagePullBackOff` long after the cluster reports `Succeeded`.
 
 ## Destroy
 
