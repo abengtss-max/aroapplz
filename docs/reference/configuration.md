@@ -85,6 +85,13 @@ Cluster subnets are validated as `/27` or larger and `pod_cidr` as `/18` or larg
 !!! note "Cluster logging"
     Azure Red Hat OpenShift exposes no resource-level diagnostic log categories, so no Azure Monitor diagnostic setting is created for the cluster. Forward cluster logs with the in-cluster Cluster Logging Forwarder instead. Application Gateway does receive a diagnostic setting when `ingress_mode` is `application_gateway`.
 
+!!! danger "Clear `managed_resource_group_name` when you copy a configuration"
+    `managed_resource_group_name` is only derived from `cluster_name` when the field is **empty**. An explicit value always wins, so a file copied from another environment keeps pointing at that environment's managed resource group.
+
+    This fails in a way that is hard to attribute. Policy exemptions are scoped to the managed resource group by name, so a stale value means the exemption you created does not apply to the group ARO actually uses. Under a policy that disables public network access on storage, the resource provider then cannot write bootstrap ignition and cluster creation ends with a bare `InternalServerError: Deployment failed.` after about five minutes, with no mention of policy, storage, or the resource group. The cluster produces no egress before failing, so firewall logs stay empty and the network looks guilty.
+
+    Leave the field empty unless you deliberately want a fixed name, and confirm the value in the preflight output before running the workload apply. The preflight prints the exact `az group create` and `az policy exemption create` commands for the group that will really be used — run those, not ones you adapted from a previous environment.
+
 These defaults are declared by the generated Terraform template rather than collected by the current PowerShell JSON wizard.
 
 ## Mode-specific inputs

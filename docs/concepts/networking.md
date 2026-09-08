@@ -64,6 +64,13 @@ Before `spoke` apply, confirm with network owners:
 - DNS resolution works for Azure, ARO, and organizational dependencies.
 - Firewall policy permits required ARO egress and operational access.
 
+!!! tip "What the firewall actually has to allow"
+    ARO 4.11 and later enable Egress Lockdown, which proxies the connections the cluster itself needs (`arosvc.azurecr.io`, `arosvc.<region>.data.azurecr.io`, `management.azure.com`, `login.microsoftonline.com`, and the Geneva monitoring endpoints). Those are handled for you and are not the usual cause of a failed install. See [Control egress traffic](https://learn.microsoft.com/azure/openshift/howto-restrict-egress).
+
+    What is *not* handled for you is your own workload traffic. Pulling application images from a registry the firewall does not allow leaves pods in `ImagePullBackOff` long after the cluster reports `Succeeded`. Add the registries your workloads use, for example `mcr.microsoft.com` and `*.data.mcr.microsoft.com`, or `quay.io`, before deploying applications.
+
+    A cluster that fails to create in roughly five minutes and produces **no** firewall log entries at all did not fail on egress; nothing reached the firewall. Look at policy and the managed resource group instead.
+
 ### Grant the pipeline identities access to the hub
 
 Bootstrap grants the plan and apply identities roles on the **workload** subscription only. It deliberately grants nothing in the connectivity subscription, because a workload pipeline should not hold standing write access to platform networking.
