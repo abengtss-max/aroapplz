@@ -166,7 +166,7 @@ Choose GitHub UI unless command-line dispatch is required.
     gh run watch $runId --repo $repo
     ```
 
-When `REDHAT_PULL_SECRET` is required, add it to both generated GitHub environments before dispatch. Application Gateway HTTPS also requires the certificate data and password described in the [configuration reference](../reference/configuration.md).
+When `REDHAT_PULL_SECRET` is required, add it to both generated GitHub environments before dispatch.
 
 ## 6. Publish a Front Door custom domain
 

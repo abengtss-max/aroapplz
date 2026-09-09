@@ -54,8 +54,6 @@ For `standalone`, the empty connectivity subscription value is omitted from gene
 | `front_door_custom_domain` | No | Public hostname served by Front Door with a free managed certificate. Empty serves only the generated `azurefd.net` endpoint, and the domain can be added later without redeploying |
 | `container_registry_enabled` | No | Create a private Container Registry. Default `true` |
 | `key_vault_enabled` | No | Create a private Key Vault. Default `true` |
-| `application_gateway_subnet_cidr` | Application Gateway only | Dedicated gateway subnet inside the ARO VNet |
-| `application_gateway_backend_host_name` | Application Gateway only | Existing OpenShift application hostname used by the HTTPS health probe |
 
 The module persists the exact resolved ARO version into the local JSON before creating bootstrap input.
 
@@ -75,15 +73,11 @@ The rendered workload Terraform also exposes these defaults:
 | `disk_encryption_set_id` | `null`; customer-managed key encryption for cluster disks |
 | `hub_gateway_transit_enabled` | `false`; `spoke` only. Reaches on-premises through the hub ExpressRoute or VPN gateway. Peering fails if the hub has no gateway |
 | `egress_bgp_route_propagation_enabled` | `false`; keeps learned routes from bypassing the firewall default route |
-| `application_gateway_backend_root_certificate` | `null`; base64 root certificate of the OpenShift ingress certificate |
 
 Cluster subnets are validated as `/27` or larger and `pod_cidr` as `/18` or larger, matching the documented ARO minimums.
 
-!!! warning "Application Gateway and the OpenShift ingress certificate"
-    OpenShift presents self-signed certificates on `*.apps` routes by default. Application Gateway v2 marks an HTTPS backend unhealthy unless the backend certificate chains to a well-known CA or its root is supplied through `application_gateway_backend_root_certificate`. Either replace the ingress certificate with one from a trusted CA or supply the root.
-
 !!! note "Cluster logging"
-    Azure Red Hat OpenShift exposes no resource-level diagnostic log categories, so no Azure Monitor diagnostic setting is created for the cluster. Forward cluster logs with the in-cluster Cluster Logging Forwarder instead. Application Gateway does receive a diagnostic setting when `ingress_mode` is `application_gateway`.
+    Azure Red Hat OpenShift exposes no resource-level diagnostic log categories, so no Azure Monitor diagnostic setting is created for the cluster. Forward cluster logs with the in-cluster Cluster Logging Forwarder instead.
 
 !!! danger "Clear `managed_resource_group_name` when you copy a configuration"
     `managed_resource_group_name` is only derived from `cluster_name` when the field is **empty**. An explicit value always wins, so a file copied from another environment keeps pointing at that environment's managed resource group.
@@ -114,7 +108,6 @@ In `spoke` mode the cluster is created with `outbound_type = UserDefinedRouting`
 | --- | --- |
 | `none` | Default; no edge service is provisioned |
 | `front_door` | Provisions Premium Front Door, WAF, and a Private Link Service in front of the private ARO ingress |
-| `application_gateway` | Provisions public WAF_v2 with a private ARO ingress backend and diagnostics |
 
 ### Front Door
 
@@ -194,7 +187,7 @@ terraform/
   main.tf variables.tf outputs.tf terraform.tf backend.tf
   aro.tf network.tf identity.tf ingress.tf
   modules/
-    front-door/ application-gateway/ monitoring/ supporting/
+    front-door/ monitoring/ supporting/
       main.tf variables.tf outputs.tf
 ```
 
@@ -204,7 +197,7 @@ directories rather than editing the generated ones.
 
 ## Runtime values: never put these in JSON
 
-Configure the generated GitHub `plan` and `apply` environments with optional `REDHAT_PULL_SECRET`. When Application Gateway is enabled, configure base64 PFX data as `APPLICATION_GATEWAY_SSL_CERTIFICATE_DATA` and its password as `APPLICATION_GATEWAY_SSL_CERTIFICATE_PASSWORD`. Both values are required because the public listener is HTTPS-only; Terraform rejects an Application Gateway plan when either value is absent.
+Configure the generated GitHub `plan` and `apply` environments with optional `REDHAT_PULL_SECRET`.
 
 Pipeline and ARO authentication use user-assigned managed identities. The bootstrap discovers the Microsoft-managed ARO resource-provider object ID and writes it to generated Terraform configuration; no operator-managed identity credential belongs in JSON.
 
@@ -224,7 +217,7 @@ The GitHub runner is an external prerequisite. Provision and register it before 
 
 ## Workload outputs
 
-The generated Terraform exports cluster ID/name, ARO VNet ID, both ARO subnet IDs, console URL, ingress status, and conditional Application Gateway public IP and FQDN.
+The generated Terraform exports cluster ID/name, ARO VNet ID, both ARO subnet IDs, console URL, ingress status, and the conditional Front Door endpoint host name and custom-domain validation records.
 
 ## Supporting services
 

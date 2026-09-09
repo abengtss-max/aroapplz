@@ -17,7 +17,7 @@ No cloud operation runs merely by importing the module. `Deploy-AROLandingZone` 
 
 ## Ingress status
 
-`ingress_mode` is exactly `none`, `front_door`, or `application_gateway`. `none` is the default. Front Door provisions a Premium profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. Application Gateway provisions a dedicated subnet, public IP, WAF_v2 gateway, private ARO ingress backend, HTTPS probe, and Log Analytics diagnostics. The ARO API and ingress profiles remain private.
+`ingress_mode` is exactly `none` or `front_door`. `none` is the default. Front Door provisions a Premium profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. The ARO API and ingress profiles remain private.
 
 ## Start
 
@@ -38,7 +38,7 @@ For an interactive local preview, run `python -m mkdocs serve` and stop it when 
 
 ## Security boundaries
 
-The bootstrap creates no Azure client secret for GitHub or ARO. GitHub uses managed-identity client IDs plus OIDC. ARO uses one cluster identity and eight platform workload identities. The operator supplies GitHub provider authentication at runtime. The optional Red Hat pull secret and the PFX values required when Application Gateway is enabled are protected runtime inputs and are not placed in generated configuration.
+The bootstrap creates no Azure client secret for GitHub or ARO. GitHub uses managed-identity client IDs plus OIDC. ARO uses one cluster identity and eight platform workload identities. The operator supplies GitHub provider authentication at runtime. The optional Red Hat pull secret is a protected runtime input and is not placed in generated configuration.
 
 The apply identity receives Azure `Contributor` and `Role Based Access Control Administrator` at workload-subscription scope because the workload resource group and required least-privilege ARO role assignments do not exist during bootstrap. Tighten these using a pre-created scope/custom role where organizational policy permits. The plan identity receives `Reader`; both receive state-container data access.
 

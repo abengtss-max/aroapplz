@@ -7,4 +7,4 @@
 - Test restore procedures for state blobs and retain platform records for the external hub/NVA dependencies.
 - Use the `destroy` action in **02 ARO Landing Zone Continuous Delivery** only from the default branch. It verifies the selected commit and applies an exact destroy plan after protected-environment approval when supported. Destroy workload resources before separately retiring bootstrap resources.
 
-Front Door and Application Gateway are both Terraform-owned when selected; monitor the WAF, backend health, public IP, certificates, and Log Analytics diagnostics.
+Front Door is Terraform-owned when selected; monitor the WAF, backend health, endpoint, certificates, and Log Analytics diagnostics.

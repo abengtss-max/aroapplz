@@ -44,12 +44,10 @@ function New-AROConfigWizard {
         worker_subnet_cidr = Read-Host 'Worker subnet CIDR'
         hub_vnet_id = if ($mode -eq 'spoke') { Read-Host 'Existing hub VNet resource ID' } else { '' }
         next_hop_ip = if ($mode -eq 'spoke') { Read-Host 'Existing firewall/NVA private IP' } else { '' }
-        ingress_mode = Read-Host 'Ingress mode (none/front_door/application_gateway; default none)'
+        ingress_mode = Read-Host 'Ingress mode (none/front_door; default none)'
     }
     if ([string]::IsNullOrWhiteSpace($config.runner_label)) { $config.runner_label = 'ubuntu-latest' }
     if ([string]::IsNullOrWhiteSpace($config.ingress_mode)) { $config.ingress_mode = 'none' }
-    $config.application_gateway_subnet_cidr = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'Dedicated Application Gateway subnet CIDR' } else { '' }
-    $config.application_gateway_backend_host_name = if ($config.ingress_mode -eq 'application_gateway') { Read-Host 'OpenShift application hostname for the gateway health probe' } else { '' }
     $parent = Split-Path -Parent $OutputPath
     if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
@@ -67,12 +65,7 @@ function Assert-AROConfig {
     if (-not $Config.ContainsKey('runner_label') -or [string]::IsNullOrWhiteSpace([string]$Config.runner_label)) { $Config.runner_label = 'ubuntu-latest' }
     if ($Config.runner_label -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$') { throw 'runner_label must be a GitHub runner label: alphanumerics, dot, dash or underscore, starting with an alphanumeric.' }
     if ($Config.github_organization -notmatch '^[A-Za-z0-9_.-]+$' -or $Config.github_repository -notmatch '^[A-Za-z0-9_.-]+$') { throw 'GitHub owner and repository names contain unsupported characters.' }
-    if ($Config.ingress_mode -notin @('none','front_door','application_gateway')) { throw "ingress_mode must be exactly 'none', 'front_door', or 'application_gateway'." }
-    if ($Config.ingress_mode -eq 'application_gateway') {
-        foreach ($name in @('application_gateway_subnet_cidr','application_gateway_backend_host_name')) {
-            if (-not $Config.ContainsKey($name) -or [string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "application_gateway mode requires '$name'." }
-        }
-    }
+    if ($Config.ingress_mode -notin @('none','front_door')) { throw "ingress_mode must be exactly 'none' or 'front_door'." }
     if ($Config.ingress_mode -eq 'front_door') {
         foreach ($name in @('front_door_subnet_cidr','front_door_backend_host_name')) {
             if ([string]::IsNullOrWhiteSpace([string]$Config[$name])) { throw "front_door mode requires '$name'." }
@@ -525,8 +518,6 @@ function New-BootstrapInput {
         hub_vnet_id = $Config.hub_vnet_id
         next_hop_ip = $Config.next_hop_ip
         ingress_mode = $Config.ingress_mode
-        application_gateway_subnet_cidr = if ($Config.ContainsKey('application_gateway_subnet_cidr')) { $Config.application_gateway_subnet_cidr } else { '' }
-        application_gateway_backend_host_name = if ($Config.ContainsKey('application_gateway_backend_host_name')) { $Config.application_gateway_backend_host_name } else { '' }
         private_endpoint_subnet_cidr = if ($Config.ContainsKey('private_endpoint_subnet_cidr')) { $Config.private_endpoint_subnet_cidr } else { '' }
         front_door_subnet_cidr = if ($Config.ContainsKey('front_door_subnet_cidr')) { $Config.front_door_subnet_cidr } else { '' }
         front_door_backend_host_name = if ($Config.ContainsKey('front_door_backend_host_name')) { $Config.front_door_backend_host_name } else { '' }

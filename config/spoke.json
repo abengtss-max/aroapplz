@@ -25,8 +25,6 @@
   "hub_vnet_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-connectivity/providers/Microsoft.Network/virtualNetworks/vnet-hub",
   "next_hop_ip": "10.0.1.4",
   "ingress_mode": "none",
-  "application_gateway_subnet_cidr": "",
-  "application_gateway_backend_host_name": "",
   "container_registry_enabled": true,
   "key_vault_enabled": true,
   "self_hosted_runner_enabled": false,
@@ -38,4 +36,3 @@
   "runner_container_instances_subnet_cidr": "",
   "runner_private_endpoint_subnet_cidr": ""
 }
-

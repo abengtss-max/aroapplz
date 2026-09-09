@@ -1,8 +1,5 @@
 locals {
-  pull_secret                                  = try(trimspace(var.pull_secret), "") == "" ? null : var.pull_secret
-  application_gateway_ssl_certificate_data     = try(trimspace(var.application_gateway_ssl_certificate_data), "") == "" ? null : var.application_gateway_ssl_certificate_data
-  application_gateway_ssl_certificate_password = try(var.application_gateway_ssl_certificate_password, "") == "" ? null : var.application_gateway_ssl_certificate_password
-  application_gateway_backend_root_certificate = try(trimspace(var.application_gateway_backend_root_certificate), "") == "" ? null : var.application_gateway_backend_root_certificate
+  pull_secret = try(trimspace(var.pull_secret), "") == "" ? null : var.pull_secret
 
   front_door_enabled          = var.ingress_mode == "front_door"
   supporting_services_enabled = var.container_registry_enabled || var.key_vault_enabled
@@ -27,23 +24,6 @@ resource "terraform_data" "input_contract" {
     precondition {
       condition     = var.runner_virtual_network_id == "" || startswith(lower(var.runner_virtual_network_id), "/subscriptions/${lower(var.workload_subscription_id)}/")
       error_message = "runner_virtual_network_id must belong to workload_subscription_id; peer other subscriptions manually."
-    }
-    precondition {
-      condition = var.ingress_mode != "application_gateway" || (
-        var.application_gateway_subnet_cidr != "" &&
-        var.application_gateway_backend_host_name != ""
-      )
-      error_message = "application_gateway requires application_gateway_subnet_cidr and application_gateway_backend_host_name."
-    }
-    precondition {
-      condition = (
-        local.application_gateway_ssl_certificate_data == null &&
-        local.application_gateway_ssl_certificate_password == null
-        ) || (
-        local.application_gateway_ssl_certificate_data != null &&
-        local.application_gateway_ssl_certificate_password != null
-      )
-      error_message = "Application Gateway PFX data and password must either both be set or both be omitted."
     }
     precondition {
       condition     = !local.supporting_services_enabled || var.private_endpoint_subnet_cidr != ""

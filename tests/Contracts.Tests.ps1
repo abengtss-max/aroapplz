@@ -153,11 +153,12 @@ Describe 'Architecture contracts' {
         $module | Should -Match "notmatch '\(\^\|/\)\\\.terraform/'"
         $module | Should -Match "notmatch '\\\.\(tfplan\|log\)\$'"
     }
-    It 'provisions Application Gateway rather than a preview contract' {
-        $workload | Should -Match 'resource "azurerm_application_gateway" "this"'
-        $workload | Should -Match 'WAF_v2'
-        $workload | Should -Match 'host_name\s+=\s+var\.backend_host_name'
-        $workload | Should -Not -Match 'application_gateway_preview|preview-not-provisioned'
+    It 'does not ship Application Gateway, which is out of scope for the accelerator' {
+        $workload | Should -Not -Match 'azurerm_application_gateway'
+        $workload | Should -Not -Match 'application_gateway'
+        (Test-Path (Join-Path $root 'ALZ.ARO\templates\terraform\modules\application-gateway')) | Should -BeFalse
+        $variables = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\variables.tf') -Raw
+        $variables | Should -Match 'contains\(\["none", "front_door"\], var\.ingress_mode\)'
     }
     It 'grants the ARO cluster subnets both service endpoints the resource provider requires' {
         $network = Get-Content (Join-Path $root 'ALZ.ARO\templates\terraform\network.tf') -Raw

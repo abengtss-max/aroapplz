@@ -125,47 +125,9 @@ variable "ingress_mode" {
   type    = string
   default = "none"
   validation {
-    condition     = contains(["none", "front_door", "application_gateway"], var.ingress_mode)
-    error_message = "ingress_mode must be exactly none, front_door, or application_gateway."
+    condition     = contains(["none", "front_door"], var.ingress_mode)
+    error_message = "ingress_mode must be exactly none or front_door."
   }
-}
-variable "application_gateway_subnet_cidr" {
-  description = "Dedicated Application Gateway subnet CIDR. Required when ingress_mode is application_gateway."
-  type        = string
-  default     = ""
-}
-variable "application_gateway_backend_host_name" {
-  description = "A routable OpenShift application host used by the HTTPS health probe. Required when ingress_mode is application_gateway."
-  type        = string
-  default     = ""
-}
-variable "application_gateway_capacity" {
-  type    = number
-  default = 2
-  validation {
-    condition     = var.application_gateway_capacity >= 1 && var.application_gateway_capacity <= 10
-    error_message = "application_gateway_capacity must be between 1 and 10."
-  }
-}
-variable "application_gateway_ssl_certificate_data" {
-  description = "Base64-encoded PFX certificate required for Application Gateway. Supply at runtime through TF_VAR_application_gateway_ssl_certificate_data."
-  type        = string
-  sensitive   = true
-  default     = null
-  nullable    = true
-}
-variable "application_gateway_ssl_certificate_password" {
-  description = "PFX password required for Application Gateway. Supply at runtime through TF_VAR_application_gateway_ssl_certificate_password."
-  type        = string
-  sensitive   = true
-  default     = null
-  nullable    = true
-}
-variable "application_gateway_backend_root_certificate" {
-  description = "Base64-encoded root certificate of the OpenShift ingress certificate. Application Gateway v2 marks a self-signed backend unhealthy without it. Omit only when the ingress controller presents a certificate from a well-known CA."
-  type        = string
-  default     = null
-  nullable    = true
 }
 variable "tags" {
   type    = map(string)

@@ -15,4 +15,4 @@ Both modes always create a new ARO VNet and both ARO subnets. There is no existi
 
 ## Runtime secrets
 
-Never add secrets to configuration. Configure optional `REDHAT_PULL_SECRET` in the generated GitHub environments. When Application Gateway HTTPS is enabled, also configure its base64 PFX data and password as documented in the reference. Pipeline and ARO authentication use managed identities.
+Never add secrets to configuration. Configure optional `REDHAT_PULL_SECRET` in the generated GitHub environments. Pipeline and ARO authentication use managed identities.

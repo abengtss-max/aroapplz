@@ -25,8 +25,6 @@
   "hub_vnet_id": "",
   "next_hop_ip": "",
   "ingress_mode": "none",
-  "application_gateway_subnet_cidr": "",
-  "application_gateway_backend_host_name": "",
   "container_registry_enabled": true,
   "key_vault_enabled": true,
   "self_hosted_runner_enabled": false,
@@ -38,4 +36,3 @@
   "runner_container_instances_subnet_cidr": "",
   "runner_private_endpoint_subnet_cidr": ""
 }
-

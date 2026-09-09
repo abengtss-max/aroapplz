@@ -49,4 +49,4 @@ The workload creates forward and reverse VNet peerings and a `0.0.0.0/0` route t
 
 ## What mode does not control
 
-Mode selection does not deploy Front Door or Application Gateway. `ingress_mode` is a separate contract with the values `none`, `front_door`, and `application_gateway`; see [configuration](../reference/configuration.md#ingress).
+Mode selection does not deploy Front Door. `ingress_mode` is a separate setting with the values `none` and `front_door`; see [configuration](../reference/configuration.md#ingress).

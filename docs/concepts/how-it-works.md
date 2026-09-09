@@ -13,7 +13,7 @@ flowchart LR
   Repo -->|PR checks| Plan[Speculative workload plan]
   Repo -->|manual SHA + approval| Apply[Exact workload plan and apply]
   Apply --> ARO[New private ARO cluster, identities, and VNet]
-  Apply -. optional .-> AGW[Application Gateway WAF_v2]
+  Apply -. optional .-> AFD[Front Door Premium and WAF over Private Link]
   ARO -. spoke only .-> Hub[Existing hub and firewall/NVA]
 ```
 
@@ -61,7 +61,6 @@ The workload uses separate `azurerm.workload` and `azurerm.connectivity` provide
 ## Ingress options
 
 - `none` is the default;
-- `front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically;
-- `application_gateway` provisions a public WAF_v2 gateway in a dedicated subnet, connects its backend to the private ARO ingress IP over HTTPS, and sends diagnostics to Log Analytics.
+- `front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically.
 
 The ARO API and ingress profiles created by the workload are private.

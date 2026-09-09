@@ -5,9 +5,7 @@ output "control_plane_subnet_id" { value = azurerm_subnet.control_plane.id }
 output "worker_subnet_id" { value = azurerm_subnet.worker.id }
 output "console_url" { value = azurerm_redhat_openshift_cluster.aro.console_url }
 output "ingress_status" {
-  value = var.ingress_mode == "none" ? "none" : (
-    var.ingress_mode == "front_door" ? "front_door provisioned" : "application_gateway provisioned"
-  )
+  value = var.ingress_mode == "none" ? "none" : "front_door provisioned"
 }
 output "front_door_endpoint_host_name" {
   value = local.front_door_enabled ? module.front_door[0].endpoint_host_name : null
@@ -15,12 +13,6 @@ output "front_door_endpoint_host_name" {
 output "front_door_custom_domain_validation" {
   description = "DNS records to publish before Front Door issues the managed certificate."
   value       = local.front_door_enabled ? module.front_door[0].custom_domain_validation : null
-}
-output "application_gateway_public_ip" {
-  value = local.application_gateway_enabled ? module.application_gateway[0].public_ip_address : null
-}
-output "application_gateway_fqdn" {
-  value = local.application_gateway_enabled ? module.application_gateway[0].fqdn : null
 }
 
 output "log_analytics_workspace_id" {

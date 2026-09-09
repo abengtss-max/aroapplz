@@ -116,7 +116,7 @@ Creates and owns the new ARO VNet and both ARO subnets, bidirectionally peers th
 
 GitHub-to-Azure authentication is secretless: bootstrap creates separate user-assigned managed identities for plan and apply, each with a GitHub-environment federated credential. The plan identity receives workload-subscription `Reader`; the apply identity receives workload-subscription `Contributor` and `Role Based Access Control Administrator`; both receive state-container data access.
 
-ARO also uses managed identities: one cluster identity and eight platform workload identities with purpose-built ARO roles. No ARO client secret is required. The optional Red Hat pull secret and Application Gateway certificate values remain protected runtime inputs and do not belong in configuration JSON.
+ARO also uses managed identities: one cluster identity and eight platform workload identities with purpose-built ARO roles. No ARO client secret is required. The optional Red Hat pull secret remains a protected runtime input and does not belong in configuration JSON.
 
 [Understand identity boundaries →](reference/identity.md)
 
@@ -126,7 +126,6 @@ ARO also uses managed identities: one cluster identity and eight platform worklo
 | --- | --- |
 | `none` | Default. No edge service is provisioned; the cluster is reachable only from connected networks. |
 | `front_door` | Provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress. The Private Link connection is approved automatically. |
-| `application_gateway` | Provisions WAF_v2, dedicated subnet, private ARO backend, HTTPS probe, and diagnostics. |
 
 The ARO API and ingress profiles created by the workload are private. Front Door reaches them over Private Link, so no public cluster endpoint is created. Operators own DNS and certificate lifecycle for custom domains on either ingress mode.
 

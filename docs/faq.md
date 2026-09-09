@@ -16,9 +16,9 @@ No. It creates bidirectional peerings to an existing hub and a default route tow
 
 The implemented ARO API and ingress profiles are private. Any approved access path and external application ingress require platform integration.
 
-## Does it deploy Front Door or Application Gateway?
+## Does it deploy Front Door?
 
-`front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. `application_gateway` provisions a WAF_v2 gateway with public frontend, private ARO ingress backend, HTTPS health probe, and Log Analytics diagnostics. `none` is the default.
+`front_door` provisions a Premium Front Door profile, WAF policy, and a Private Link Service in front of the private ARO ingress, and approves the Private Link connection automatically. `none` is the default. Application Gateway is not part of the accelerator.
 
 ## Is Azure authentication secretless?
 
@@ -26,7 +26,7 @@ Yes. Separate plan/apply managed identities use GitHub OIDC, and ARO uses cluste
 
 ## Where should ARO secrets go?
 
-Add the optional Red Hat pull secret and Application Gateway PFX values to both protected GitHub environments when required. Never put them in local configuration, generated source, logs, or pull requests.
+Add the optional Red Hat pull secret to both protected GitHub environments when required. Never put it in local configuration, generated source, logs, or pull requests.
 
 ## How is the ARO version selected?
 

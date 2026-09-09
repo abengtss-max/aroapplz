@@ -36,7 +36,7 @@ For interactive authoring, contributors may run `python -m mkdocs serve` locally
 - Preserve immutable SHA planning, exact-artifact apply, approvals, and guarded destroy.
 - Keep GitHub Azure authentication OIDC-based.
 - Treat the ARO service-principal secret and optional pull secret as protected runtime values.
-- Do not overstate ingress: Front Door and preview Application Gateway remain contracts until implementation changes.
+- Do not overstate ingress: describe only what the templates actually provision.
 
 ## Security and repository hygiene
 

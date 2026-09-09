@@ -16,7 +16,7 @@ Both `standalone` and `spoke` create a new ARO VNet and both ARO subnets. The ac
 
 `front_door_custom_domain` creates the custom domain with an Azure-managed certificate, but the accelerator does not own your DNS zone. You must publish the `_dnsauth` TXT and the CNAME records yourself before the domain validates. See the quickstart.
 
-`application_gateway` provisions a WAF_v2 gateway with an HTTPS frontend, private ARO ingress backend, health probe, NSG, and diagnostics. It requires a dedicated subnet, backend hostname, and protected PFX certificate inputs at runtime. The workload creates private ARO API and ingress profiles.
+    `application_gateway` is not part of the accelerator. `ingress_mode` accepts only `none` or `front_door`. Operators who need an Application Gateway in front of the private ingress must provision and operate it separately.
 
 ## Apply role is subscription-scoped
 
